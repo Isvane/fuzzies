@@ -9,7 +9,7 @@ Fuzzy search crate for Rust.
 More information about this crate can be found in the [crate documentation](https://docs.rs/fuzzies)
 
 > [!WARNING]  
-> This library is a student learning project in early development. Breaking changes may occur frequently and without warning.
+> This crate is a student learning project. It is actively evolving, which means you might encounter bugs, edge cases, or performance bottlenecks. If you're a fellow student or developer looking to collaborate, contributions are always welcome!
 
 ---
 
@@ -29,17 +29,17 @@ This library allows you to build a compact, memory-mapped FST from a file and pe
 use fuzzies::Dictionary;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    // 1. Prepare your raw text file (must be sorted lexicographically)
+    // Prepare your raw text file (must be sorted lexicographically)
     // Fuzzies provides a handy in-place sorter for convenience:
     Dictionary::sort("words.txt")?;
 
-    // 2. Build the immutable binary FST from the sorted text file
+    // Build the immutable binary FST from the sorted text file
     Dictionary::build("words.txt", "words.fst")?;
 
-    // 3. Load the dictionary
+    // Load the dictionary
     let dict = Dictionary::open("words.fst")?;
 
-    // 4. Perform a fuzzy search with a max typo distance of 2 and limit of 5 results
+    // Perform a fuzzy search with a max typo distance of 2 and limit of 5 results
     // We can also enable transposition handling (e.g., "banaan" -> "banana")
     let results = dict.search("banaan")
         .distance(2)
@@ -51,7 +51,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         println!("Found: {} (Distance: {}, Exact: {})", result.key, result.distance, result.is_exact);
     }
 
-    // 5. Batch search (multithreaded, defaults to a distance of 1)
+    // Batch search (multithreaded, defaults to a distance of 1)
     let queries = vec!["aple", "baxana", "cherri"];
     let batch_results = dict.batch_search(&queries);
 
