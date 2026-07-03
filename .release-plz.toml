@@ -15,8 +15,7 @@ A huge thank you to everyone who contributed to this release:
 commit_parsers = [
   { message = "^feat", group = "Added" },
   { message = "^fix", group = "Fixed" },
-  { message = "^refactor", group = "Refactored" },
-  { message = "^ci", group = "Continuous Integration" },
   { message = "^docs", group = "Documentation" },
-  { message = ".*", group = "Other" }
+
+  { message = ".*", skip = true }
 ]
