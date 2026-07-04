@@ -79,10 +79,10 @@ pub struct SearchBuilder<'a> {
 
 impl<'a> SearchBuilder<'a> {
     /// Defaults: `limit = 5`, `distance = 1`, `transposition = false`.
-    pub fn new(dictionary: &'a Dictionary, query: &str) -> Self {
+    pub fn new(dictionary: &'a Dictionary, query: impl Into<String>) -> Self {
         Self {
             dictionary,
-            query: query.to_string(),
+            query: query.into(),
             limit: 5,
             distance: 1,
             transposition: false,
