@@ -3,7 +3,7 @@ mod tests {
     use std::fs::File;
     use std::io::{BufRead, BufReader, Write};
 
-    use crate::Dictionary;
+    use crate::{Dictionary, DictionarySource};
     use fst::{Set, SetBuilder};
 
     fn create_test_dict(words: &[&str]) -> Dictionary {
@@ -22,7 +22,7 @@ mod tests {
         let mmap = mmap.make_read_only().unwrap();
 
         Dictionary {
-            map: Set::new(mmap).unwrap(),
+            map: Set::new(DictionarySource::Mmapped(mmap)).unwrap(),
         }
     }
 
