@@ -51,9 +51,27 @@ impl fst::Automaton for FstDfaWrapper {
     }
 }
 
+/// Represents the underlying storage strategy for the dictionary data.
+///
+/// This allows the dictionary to abstract over whether it is reading dynamically
+/// from a file on disk or referencing a static asset bundled into the application binary.
+pub enum DictionarySource {
+    Mmapped(Mmap),
+    Embedded(&'static [u8]),
+}
+
+impl AsRef<[u8]> for DictionarySource {
+    fn as_ref(&self) -> &[u8] {
+        match self {
+            DictionarySource::Mmapped(mmap) => mmap,
+            DictionarySource::Embedded(slice) => slice,
+        }
+    }
+}
+
 /// Memory-mapped FST dictionary for fuzzy string lookups.
 pub struct Dictionary {
-    map: Set<Mmap>,
+    map: Set<DictionarySource>,
 }
 
 /// A matched item from a fuzzy search.
@@ -181,8 +199,28 @@ impl Dictionary {
     pub fn open(path: impl AsRef<Path>) -> Result<Self, DictionaryError> {
         let file = File::open(path)?;
         let mmap = unsafe { Mmap::map(&file)? };
-        let map = Set::new(mmap)?;
+        let map = Set::new(DictionarySource::Mmapped(mmap))?;
 
+        Ok(Self { map })
+    }
+
+    /// Creates a new `Dictionary` from a static byte slice embedded in the binary.
+    ///
+    /// This method enables single-file executable distribution by allowing you to bake
+    /// the FST data directly into your compiled application using `include_bytes!`.
+    ///
+    /// # Example
+    ///
+    /// ```rust, ignore
+    /// use fuzzies::Dictionary;
+    ///
+    /// // Bake the dictionary file directly into the executable at compile time
+    /// static DICT_DATA: &[u8] = include_bytes!("../assets/words.fst");
+    ///
+    /// let dict = Dictionary::from_embedded(DICT_DATA).expect("Failed to load embedded dict");
+    /// ```
+    pub fn from_embedded(bytes: &'static [u8]) -> Result<Self, DictionaryError> {
+        let map = Set::new(DictionarySource::Embedded(bytes))?;
         Ok(Self { map })
     }
 
