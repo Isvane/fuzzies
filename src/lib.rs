@@ -204,6 +204,25 @@ impl Dictionary {
         Ok(Self { map })
     }
 
+    /// Returns `true` if the dictionary contains the exact key
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// # use fuzzies::{Dictionary, DictionaryError};
+    /// # fn main() -> Result<(), DictionaryError> {
+    /// let dict = Dictionary::open("dict.fst")?;
+    ///
+    /// assert!(dict.contains("apple"));
+    /// assert!(dict.contains(b"banana")); // Works with byte slices too!
+    /// assert!(!dict.contains("not_a_real_word"));
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn contains(&self, key: impl AsRef<[u8]>) -> bool {
+        self.map.contains(key)
+    }
+
     /// Creates a new `Dictionary` from a static byte slice embedded in the binary.
     ///
     /// This method enables single-file executable distribution by allowing you to bake
