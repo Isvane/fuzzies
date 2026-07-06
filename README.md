@@ -8,9 +8,6 @@ Fuzzy search crate for Rust.
 
 More information about this crate can be found in the [crate documentation](https://docs.rs/fuzzies)
 
-> [!WARNING]  
-> This crate is a student learning project. It is actively evolving, which means you might encounter bugs, edge cases, or performance bottlenecks. If you're a fellow student or developer looking to collaborate, contributions are always welcome!
-
 ---
 
 ## Installation
@@ -36,14 +33,19 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Build the immutable binary FST from the sorted text file
     Dictionary::build("words.txt", "words.fst")?;
 
-    // Load the dictionary
+    // Load the dictionary (memory-mapped from disk)
     let dict = Dictionary::open("words.fst")?;
 
+    // Check for exact matches instantly
+    if dict.contains("banana") {
+        println!("Exact match found!");
+    }
+
     // Perform a fuzzy search with a max typo distance of 2 and limit of 5 results
-    // We can also enable transposition handling (e.g., "banaan" -> "banana")
     let results = dict.search("banaan")
         .distance(2)
-        .transposition(true)
+        .transposition(true) // Handles adjacent swaps (e.g., "teh" -> "the")
+        .prefix(false)       // Set to true for prefix fuzzy lookups
         .limit(5)
         .execute()?;
     
@@ -64,6 +66,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     Ok(())
 }
+```
+
+If you prefer shipping a single executable without relying on an external .fst file on disk, bake the dataset directly into your application:
+
+```rust, ignore
+static DICT_DATA: &[u8] = include_bytes!("../assets/words.fst");
+let dict = Dictionary::from_embedded(DICT_DATA)?;
 ```
 
 ---
