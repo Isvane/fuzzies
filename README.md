@@ -70,9 +70,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 If you prefer shipping a single executable without relying on an external .fst file on disk, bake the dataset directly into your application:
 
-```rust, no_run
-use fuzzies::Dictionary;
-
+```rust, ignore
 static DICT_DATA: &[u8] = include_bytes!("../assets/words.fst");
 let dict = Dictionary::from_embedded(DICT_DATA)?;
 ```
