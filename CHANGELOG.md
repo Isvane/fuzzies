@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.2](https://github.com/Isvane/fuzzies/compare/v0.4.1...v0.4.2) - 2026-07-06
+
+### Added
+
+- *(dictionary)* add contains method ([#48](https://github.com/Isvane/fuzzies/pull/48))
+- *(dictionary)* add support for embedded FST ([#45](https://github.com/Isvane/fuzzies/pull/45))
+
+### Documentation
+
+- update README with improved usage details ([#49](https://github.com/Isvane/fuzzies/pull/49))
+- *(examples)* add interactive repl fuzzy search example ([#44](https://github.com/Isvane/fuzzies/pull/44))
+- revise README.md ([#39](https://github.com/Isvane/fuzzies/pull/39))
+
 ## [0.4.1](https://github.com/Isvane/fuzzies/compare/v0.4.0...v0.4.1) - 2026-07-03
 
 ### Added
