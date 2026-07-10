@@ -1,21 +1,12 @@
 # 🦫 Fuzzies
 
+**Fuzzies** is a fast, friendly integration layer that bridges the gap between low-level finite state transducers (`fst`) and Levenshtein automata, saving you from writing tedious boilerplate.
+
 [![Crates.io](https://img.shields.io/crates/v/fuzzies.svg)](https://crates.io/crates/fuzzies)
 [![Docs.rs](https://docs.rs/fuzzies/badge.svg)](https://docs.rs/fuzzies)
 [![Crates.io](https://img.shields.io/crates/l/fuzzies)](https://github.com/Isvane/fuzzies/blob/main/LICENSE)
 
 More information about this crate can be found in the [crate documentation](https://docs.rs/fuzzies)
-
----
-
-## Motivation
-
-I originally built `Fuzzies` as a learning project during my sophomore year of CS. I was looking for a fast fuzzy search tool, but realized that wiring up the underlying low-level crates required writing a ton of boilerplate. This crate is just meant to be a friendly integration layer to save you that time.
-
-- **Easy integration:** It bridges the gap between `fst` and `levenshtein_automata` so they actually work together out of the box.
-- **No manual orchestration:** It handles the tedious parts like file streams, memory-mapping (`memmap2`), and state transition tracking behind a builder API.
-- **Transposition support:** Seamlessly handles Damerau-Levenshtein distance under the hood, which means it easily catches adjacent character swaps (like `"teh"` -> `"the"`).
-- **Parallel search:** Powered by `rayon`, letting you process thousands of queries at once across all your cores.
 
 ---
 
