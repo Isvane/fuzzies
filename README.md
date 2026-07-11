@@ -1,4 +1,4 @@
-# 🦫 Fuzzies
+# 🧸 Fuzzies
 
 **Fuzzies** is a fast, friendly integration layer that bridges the gap between low-level finite state transducers (`fst`) and Levenshtein automata, saving you from writing tedious boilerplate.
 
@@ -20,12 +20,10 @@ cargo add fuzzies
 
 ## Example
 
-`Fuzzies` allows you to build a compact, memory-mapped FST from a file and perform fast, fuzzy searches with configurable Levenshtein distances.
-
 ```rust, no_run
-use fuzzies::Dictionary;
+use fuzzies::{Dictionary, DictionaryError};
 
-fn main() -> Result<(), Box<dyn std::error::Error>> {
+fn main() -> Result<(), DictionaryError> {
     // Prepare your raw text file (must be sorted lexicographically)
     // Fuzzies provides a handy in-place sorter for convenience:
     Dictionary::sort("words.txt")?;
@@ -68,7 +66,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 }
 ```
 
-If you prefer shipping a single executable without relying on an external .fst file on disk, bake the dataset directly into your application:
+### Embedding Data
+
+If you don't want to manage external `.fst` files on disk, embed the dataset directly into your application:
 
 ```rust, ignore
 static DICT_DATA: &[u8] = include_bytes!("../assets/words.fst");
@@ -77,7 +77,7 @@ let dict = Dictionary::from_embedded(DICT_DATA)?;
 
 ---
 
-## Performance
+## 🎈 Performance
 
 The following benchmarks were gathered using Criterion to evaluate lookup speeds for single and parallel batch searches.
 You can re-run these benchmarks on your hardware using `cargo bench`.
