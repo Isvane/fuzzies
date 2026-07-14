@@ -77,6 +77,14 @@ let dict = Dictionary::from_embedded(DICT_DATA)?;
 
 ---
 
+## Built with Fuzzies
+
+Check out real-world projects utilizing `fuzzies`:
+
+* **[Mamoru](https://github.com/Isvane/mamoru)**: A blazing-fast Git `commit-msg` hook that embeds a compiled dictionary of over 106,000 words to instantly catch and block typos before they make it into your version control history.
+
+---
+
 ## 🎈 Performance
 
 The following benchmarks were gathered using Criterion to evaluate lookup speeds for single and parallel batch searches.
