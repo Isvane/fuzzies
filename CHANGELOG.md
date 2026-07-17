@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.3](https://github.com/Isvane/fuzzies/compare/v0.4.2...v0.4.3) - 2026-07-17
+
+### Added
+
+- *(search)* implement Ord and PartialOrd for SearchResult
+
+### Documentation
+
+- *(examples)* add dictionary search example
+- improve README ([#53](https://github.com/Isvane/fuzzies/pull/53))
+- remove motivation ([#52](https://github.com/Isvane/fuzzies/pull/52))
+- update README.md ([#50](https://github.com/Isvane/fuzzies/pull/50))
+
 ## [0.4.2](https://github.com/Isvane/fuzzies/compare/v0.4.1...v0.4.2) - 2026-07-06
 
 ### Added
