@@ -255,24 +255,19 @@ impl Dictionary {
     /// # Ok(())
     /// # }
     /// ```
-    ///
-    /// # Warning
-    /// Loads the entire file into memory. Use an external CLI utility like `sort` for massive datasets.
     pub fn sort(path: impl AsRef<Path>) -> Result<(), DictionaryError> {
         let path = path.as_ref();
-        let file = File::open(path)?;
-        let reader = BufReader::new(file);
+        let content = std::fs::read_to_string(path)?;
 
-        let mut contents: Vec<String> = reader.lines().collect::<Result<Vec<_>, _>>()?;
-        contents.sort_unstable();
+        let mut lines: Vec<&str> = content.lines().collect();
+        lines.sort_unstable();
 
-        let file = File::create(path)?;
-        let mut writer = BufWriter::new(file);
-
-        for content in contents {
-            writeln!(writer, "{}", content)?;
+        let mut writer = BufWriter::new(File::create(path)?);
+        for line in lines {
+            if !line.is_empty() {
+                writeln!(writer, "{}", line)?;
+            }
         }
-
         Ok(())
     }
 
