@@ -1,5 +1,6 @@
 #![doc = include_str!("../README.md")]
 
+use std::cmp::Ordering;
 use std::collections::BinaryHeap;
 use std::fs::File;
 use std::io::{BufRead, BufReader, BufWriter, Write};
@@ -83,6 +84,20 @@ pub struct SearchResult {
     pub key: String,
     /// Levenshtein distance to the query.
     pub distance: u8,
+}
+
+impl PartialOrd for SearchResult {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for SearchResult {
+    fn cmp(&self, other: &Self) -> Ordering {
+        self.distance
+            .cmp(&other.distance)
+            .then_with(|| self.key.cmp(&other.key))
+    }
 }
 
 /// Query builder for configuring fuzzy searches.
@@ -178,8 +193,7 @@ impl<'a> SearchBuilder<'a> {
             })
             .collect::<Result<_, DictionaryError>>()?;
 
-        results
-            .sort_unstable_by(|a, b| a.distance.cmp(&b.distance).then_with(|| a.key.cmp(&b.key)));
+        results.sort_unstable();
 
         Ok(results)
     }
