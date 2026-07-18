@@ -25,78 +25,160 @@ pub enum DictionaryError {
     Utf8(#[from] std::string::FromUtf8Error),
 }
 
-/// Adapts a Levenshtein [`DFA`] to the [`fst::Automaton`] trait ecosystem.
-pub struct FstDfaWrapper(pub DFA);
-
-impl fst::Automaton for FstDfaWrapper {
-    type State = u32;
-
-    #[inline]
-    fn start(&self) -> Self::State {
-        self.0.initial_state()
-    }
-
-    #[inline]
-    fn is_match(&self, state: &Self::State) -> bool {
-        matches!(self.0.distance(*state), Distance::Exact(_))
-    }
-
-    #[inline]
-    fn accept(&self, state: &Self::State, byte: u8) -> Self::State {
-        self.0.transition(*state, byte)
-    }
-
-    #[inline]
-    fn can_match(&self, state: &Self::State) -> bool {
-        *state != levenshtein_automata::SINK_STATE
-    }
-}
-
-/// Represents the underlying storage strategy for the dictionary data.
-///
-/// This allows the dictionary to abstract over whether it is reading dynamically
-/// from a file on disk or referencing a static asset bundled into the application binary.
-pub enum DictionarySource {
-    Mmapped(Mmap),
-    Embedded(&'static [u8]),
-}
-
-impl AsRef<[u8]> for DictionarySource {
-    fn as_ref(&self) -> &[u8] {
-        match self {
-            DictionarySource::Mmapped(mmap) => mmap,
-            DictionarySource::Embedded(slice) => slice,
-        }
-    }
-}
-
 /// Memory-mapped FST dictionary for fuzzy string lookups.
 pub struct Dictionary {
     map: Set<DictionarySource>,
 }
 
-/// A matched item from a fuzzy search.
-#[derive(Debug, Clone, Eq, PartialEq)]
-pub struct SearchResult {
-    /// True if Levenshtein distance is 0.
-    pub is_exact: bool,
-    /// The matched string.
-    pub key: String,
-    /// Levenshtein distance to the query.
-    pub distance: u8,
-}
+impl Dictionary {
+    /// Opens a memory-mapped FST dictionary from an existing file.
+    ///
+    /// # Examples
+    /// ```no_run
+    /// # use fuzzies::{Dictionary, DictionaryError};
+    /// # fn main() -> Result<(), DictionaryError> {
+    /// let dict = Dictionary::open("dict.fst")?;
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn open(path: impl AsRef<Path>) -> Result<Self, DictionaryError> {
+        let file = File::open(path)?;
+        let mmap = unsafe { Mmap::map(&file)? };
+        let map = Set::new(DictionarySource::Mmapped(mmap))?;
 
-impl PartialOrd for SearchResult {
-    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        Some(self.cmp(other))
+        Ok(Self { map })
     }
-}
 
-impl Ord for SearchResult {
-    fn cmp(&self, other: &Self) -> Ordering {
-        self.distance
-            .cmp(&other.distance)
-            .then_with(|| self.key.cmp(&other.key))
+    /// Creates a dictionary from a static byte slice embedded in the binary.
+    ///
+    /// Enables single-file executable distribution by baking the FST data
+    /// directly into your application using `include_bytes!`.
+    ///
+    /// # Example
+    /// ```ignore
+    /// # use fuzzies::Dictionary;
+    /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// static DICT_DATA: &[u8] = include_bytes!("../assets/words.fst");
+    /// let dict = Dictionary::from_embedded(DICT_DATA)?;
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn from_embedded(bytes: &'static [u8]) -> Result<Self, DictionaryError> {
+        let map = Set::new(DictionarySource::Embedded(bytes))?;
+        Ok(Self { map })
+    }
+
+    /// Compiles a byte-sorted text file into an immutable binary FST.
+    ///
+    /// # Example
+    /// ```no_run
+    /// # use fuzzies::Dictionary;
+    /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// Dictionary::build("sorted_words.txt", "dict.fst")?;
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn build(
+        input_path: impl AsRef<Path>,
+        output_path: impl AsRef<Path>,
+    ) -> Result<(), DictionaryError> {
+        let mut reader = BufReader::new(File::open(input_path)?);
+        let mut build = SetBuilder::new(BufWriter::new(File::create(output_path)?))?;
+        let mut line = String::new();
+
+        while reader.read_line(&mut line)? > 0 {
+            let trimmed = line.trim();
+            if !trimmed.is_empty() {
+                build.insert(trimmed)?;
+            }
+            line.clear();
+        }
+
+        build.finish()?;
+        Ok(())
+    }
+
+    /// Sorts a newline-delimited text file in-place by byte order.
+    /// Prepares raw source text for processing by [`Self::build`].
+    ///
+    /// # Example
+    /// ```no_run
+    /// # use fuzzies::Dictionary;
+    /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// Dictionary::sort("unsorted_words.txt")?;
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn sort(path: impl AsRef<Path>) -> Result<(), DictionaryError> {
+        let path = path.as_ref();
+        let content = std::fs::read_to_string(path)?;
+
+        let mut lines: Vec<&str> = content.lines().collect();
+        lines.sort_unstable();
+
+        let mut writer = BufWriter::new(File::create(path)?);
+        for line in lines {
+            if !line.is_empty() {
+                writeln!(writer, "{}", line)?;
+            }
+        }
+        Ok(())
+    }
+
+    /// Returns `true` if the dictionary contains the exact key.
+    ///
+    /// # Example
+    /// ```no_run
+    /// # use fuzzies::Dictionary;
+    /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// # let dict = Dictionary::open("dict.fst")?;
+    /// assert!(dict.contains("apple"));
+    /// assert!(dict.contains(b"banana")); // Works with byte slices too!
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn contains(&self, key: impl AsRef<[u8]>) -> bool {
+        self.map.contains(key)
+    }
+
+    /// Initializes a fuzzy search query builder.
+    ///
+    /// # Example
+    /// ```no_run
+    /// # use fuzzies::Dictionary;
+    /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// # let dict = Dictionary::open("dict.fst")?;
+    /// let results = dict.search("baxana")
+    ///     .distance(2)
+    ///     .limit(5)
+    ///     .execute()?;
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn search<'a>(&'a self, query: &str) -> SearchBuilder<'a> {
+        SearchBuilder::new(self, query)
+    }
+
+    /// Executes multiple search queries concurrently.
+    ///
+    /// # Example
+    /// ```no_run
+    /// # use fuzzies::Dictionary;
+    /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// # let dict = Dictionary::open("dict.fst")?;
+    /// let queries = ["apple", "baxana", "cheriy"];
+    /// let batch_results = dict.batch_search(&queries);
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn batch_search(
+        &self,
+        queries: &[&str],
+    ) -> Vec<Result<Vec<SearchResult>, DictionaryError>> {
+        queries
+            .par_iter()
+            .map(|&query| self.search(query).execute())
+            .collect()
     }
 }
 
@@ -129,25 +211,25 @@ impl<'a> SearchBuilder<'a> {
         self
     }
 
-    /// Sets the maximum Levenshtein distance for fuzzy searching (hard-capped at 2).
+    /// Maximum Levenshtein distance for fuzzy searching (hard-capped at 2).
     pub fn distance(mut self, distance: u8) -> Self {
         self.distance = distance.min(2);
         self
     }
 
-    /// Sets whether to allow transpositions (e.g., swapping adjacent characters like "teh" -> "the").
+    /// Whether to allow adjacent character swaps (e.g., "teh" -> "the").
     pub fn transposition(mut self, transposition: bool) -> Self {
         self.transposition = transposition;
         self
     }
 
-    /// Sets whether to perform a prefix fuzzy search.
+    /// Whether to perform a prefix fuzzy search.
     pub fn prefix(mut self, prefix: bool) -> Self {
         self.prefix = prefix;
         self
     }
 
-    /// Evaluates the fuzzy search against the FST.
+    /// Evaluates the fuzzy search against the dictionary.
     pub fn execute(self) -> Result<Vec<SearchResult>, DictionaryError> {
         let builder = LevenshteinAutomatonBuilder::new(self.distance, self.transposition);
 
@@ -167,7 +249,7 @@ impl<'a> SearchBuilder<'a> {
             }
 
             let dist = match dfa.0.distance(state) {
-                levenshtein_automata::Distance::Exact(d) => d,
+                Distance::Exact(d) => d,
                 _ => self.distance,
             };
 
@@ -199,149 +281,69 @@ impl<'a> SearchBuilder<'a> {
     }
 }
 
-impl Dictionary {
-    /// Memory-maps an existing compiled FST file.
-    ///
-    /// # Examples
-    /// ```no_run
-    /// # use fuzzies::{Dictionary, DictionaryError};
-    /// # fn main() -> Result<(), DictionaryError> {
-    /// let dict = Dictionary::open("dict.fst")?;
-    /// # Ok(())
-    /// # }
-    /// ```
-    pub fn open(path: impl AsRef<Path>) -> Result<Self, DictionaryError> {
-        let file = File::open(path)?;
-        let mmap = unsafe { Mmap::map(&file)? };
-        let map = Set::new(DictionarySource::Mmapped(mmap))?;
+/// A matched item from a fuzzy search.
+#[derive(Debug, Clone, Eq, PartialEq)]
+pub struct SearchResult {
+    /// True if Levenshtein distance is 0.
+    pub is_exact: bool,
+    /// The matched string.
+    pub key: String,
+    /// Levenshtein distance to the query.
+    pub distance: u8,
+}
 
-        Ok(Self { map })
+impl PartialOrd for SearchResult {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
     }
+}
 
-    /// Returns `true` if the dictionary contains the exact key
-    ///
-    /// # Examples
-    ///
-    /// ```no_run
-    /// # use fuzzies::{Dictionary, DictionaryError};
-    /// # fn main() -> Result<(), DictionaryError> {
-    /// let dict = Dictionary::open("dict.fst")?;
-    ///
-    /// assert!(dict.contains("apple"));
-    /// assert!(dict.contains(b"banana")); // Works with byte slices too!
-    /// assert!(!dict.contains("not_a_real_word"));
-    /// # Ok(())
-    /// # }
-    /// ```
-    pub fn contains(&self, key: impl AsRef<[u8]>) -> bool {
-        self.map.contains(key)
+impl Ord for SearchResult {
+    fn cmp(&self, other: &Self) -> Ordering {
+        self.distance
+            .cmp(&other.distance)
+            .then_with(|| self.key.cmp(&other.key))
     }
+}
 
-    /// Creates a new `Dictionary` from a static byte slice embedded in the binary.
-    ///
-    /// This method enables single-file executable distribution by allowing you to bake
-    /// the FST data directly into your compiled application using `include_bytes!`.
-    ///
-    /// # Example
-    ///
-    /// ```rust, ignore
-    /// use fuzzies::Dictionary;
-    ///
-    /// // Bake the dictionary file directly into the executable at compile time
-    /// static DICT_DATA: &[u8] = include_bytes!("../assets/words.fst");
-    ///
-    /// let dict = Dictionary::from_embedded(DICT_DATA).expect("Failed to load embedded dict");
-    /// ```
-    pub fn from_embedded(bytes: &'static [u8]) -> Result<Self, DictionaryError> {
-        let map = Set::new(DictionarySource::Embedded(bytes))?;
-        Ok(Self { map })
-    }
+/// Underlying storage strategy for the dictionary data.
+enum DictionarySource {
+    Mmapped(Mmap),
+    Embedded(&'static [u8]),
+}
 
-    /// Sorts a newline-delimited text file in-place by byte order.
-    ///
-    /// Prepares raw source text for processing by [`Self::build`].
-    ///
-    /// # Examples
-    /// ```no_run
-    /// # use fuzzies::{Dictionary, DictionaryError};
-    /// # fn main() -> Result<(), DictionaryError> {
-    /// Dictionary::sort("unsorted_words.txt")?;
-    /// # Ok(())
-    /// # }
-    /// ```
-    pub fn sort(path: impl AsRef<Path>) -> Result<(), DictionaryError> {
-        let path = path.as_ref();
-        let content = std::fs::read_to_string(path)?;
-
-        let mut lines: Vec<&str> = content.lines().collect();
-        lines.sort_unstable();
-
-        let mut writer = BufWriter::new(File::create(path)?);
-        for line in lines {
-            if !line.is_empty() {
-                writeln!(writer, "{}", line)?;
-            }
+impl AsRef<[u8]> for DictionarySource {
+    fn as_ref(&self) -> &[u8] {
+        match self {
+            DictionarySource::Mmapped(mmap) => mmap,
+            DictionarySource::Embedded(slice) => slice,
         }
-        Ok(())
+    }
+}
+
+/// Adapts a Levenshtein [`DFA`] to the [`fst::Automaton`] trait ecosystem.
+struct FstDfaWrapper(DFA);
+
+impl fst::Automaton for FstDfaWrapper {
+    type State = u32;
+
+    #[inline]
+    fn start(&self) -> Self::State {
+        self.0.initial_state()
     }
 
-    /// Compiles a byte-sorted text file into an immutable binary FST.
-    pub fn build(
-        input_path: impl AsRef<Path>,
-        output_path: impl AsRef<Path>,
-    ) -> Result<(), DictionaryError> {
-        let mut reader = BufReader::new(File::open(input_path)?);
-        let mut build = SetBuilder::new(BufWriter::new(File::create(output_path)?))?;
-        let mut line = String::new();
-
-        while reader.read_line(&mut line)? > 0 {
-            let trimmed = line.trim();
-            if !trimmed.is_empty() {
-                build.insert(trimmed)?;
-            }
-            line.clear();
-        }
-
-        build.finish()?;
-        Ok(())
+    #[inline]
+    fn is_match(&self, state: &Self::State) -> bool {
+        matches!(self.0.distance(*state), Distance::Exact(_))
     }
 
-    /// Initializes a fuzzy search query builder.
-    ///
-    /// # Examples
-    /// ```no_run
-    /// # use fuzzies::{Dictionary, DictionaryError};
-    /// # fn main() -> Result<(), DictionaryError> {
-    /// # let dict = Dictionary::open("dict.fst")?;
-    /// let results = dict.search("baxana")
-    ///     .distance(2)
-    ///     .limit(5)
-    ///     .execute()?;
-    /// # Ok(())
-    /// # }
-    /// ```
-    pub fn search<'a>(&'a self, query: &str) -> SearchBuilder<'a> {
-        SearchBuilder::new(self, query)
+    #[inline]
+    fn accept(&self, state: &Self::State, byte: u8) -> Self::State {
+        self.0.transition(*state, byte)
     }
 
-    /// Executes multiple search queries concurrently via Rayon.
-    ///
-    /// # Examples
-    /// ```no_run
-    /// # use fuzzies::{Dictionary, DictionaryError};
-    /// # fn main() -> Result<(), DictionaryError> {
-    /// # let dict = Dictionary::open("dict.fst")?;
-    /// let batch_results = dict.batch_search(&["baxana", "appl", "cheriy"]);
-    /// # Ok(())
-    /// # }
-    /// ```
-    pub fn batch_search(
-        &self,
-        queries: &[&str],
-    ) -> Vec<Result<Vec<SearchResult>, DictionaryError>> {
-        queries
-            .par_iter()
-            .map(|&query| self.search(query).execute())
-            .collect()
+    #[inline]
+    fn can_match(&self, state: &Self::State) -> bool {
+        *state != levenshtein_automata::SINK_STATE
     }
 }
