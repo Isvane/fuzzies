@@ -171,14 +171,15 @@ impl Dictionary {
     /// # Ok(())
     /// # }
     /// ```
-    pub fn batch_search(
-        &self,
-        queries: &[&str],
-    ) -> Vec<Result<Vec<SearchResult>, DictionaryError>> {
-        queries
-            .par_iter()
-            .map(|&query| self.search(query).execute())
-            .collect()
+    pub fn batch_search<'a, 'b>(&'a self, queries: &'b [&'b str]) -> BatchSearchBuilder<'a, 'b> {
+        BatchSearchBuilder {
+            dictionary: self,
+            queries,
+            limit: 5,
+            distance: 1,
+            transposition: false,
+            prefix: false,
+        }
     }
 }
 
@@ -190,6 +191,54 @@ pub struct SearchBuilder<'a> {
     distance: u8,
     transposition: bool,
     prefix: bool,
+}
+
+/// Query builder for batch search.
+pub struct BatchSearchBuilder<'a, 'b> {
+    dictionary: &'a Dictionary,
+    queries: &'b [&'b str],
+    limit: usize,
+    distance: u8,
+    transposition: bool,
+    prefix: bool,
+}
+
+/// Same as [`SearchBuilder`] but for batch searches.
+impl<'a, 'b> BatchSearchBuilder<'a, 'b> {
+    pub fn limit(mut self, limit: usize) -> Self {
+        self.limit = limit;
+        self
+    }
+
+    pub fn distance(mut self, distance: u8) -> Self {
+        self.distance = distance;
+        self
+    }
+
+    pub fn transposition(mut self, transposition: bool) -> Self {
+        self.transposition = transposition;
+        self
+    }
+
+    pub fn prefix(mut self, prefix: bool) -> Self {
+        self.prefix = prefix;
+        self
+    }
+
+    pub fn execute(self) -> Vec<Result<Vec<SearchResult>, DictionaryError>> {
+        self.queries
+            .par_iter()
+            .map(|&query| {
+                self.dictionary
+                    .search(query)
+                    .limit(self.limit)
+                    .distance(self.distance)
+                    .transposition(self.transposition)
+                    .prefix(self.prefix)
+                    .execute()
+            })
+            .collect()
+    }
 }
 
 impl<'a> SearchBuilder<'a> {
