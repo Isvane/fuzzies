@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.0](https://github.com/Isvane/fuzzies/compare/v0.4.3...v0.5.0) - 2026-07-18
+
+### Added
+
+- *(search)* [**breaking**] refactor batch_search to use builder pattern ([#55](https://github.com/Isvane/fuzzies/pull/55))
+
+### Other
+
+- update .release-plz.toml
+- update release-plz.toml
+
+### Refactored
+
+- [**breaking**] encapsulate internal FST types and streamline docstrings
+
 ## [0.4.3](https://github.com/Isvane/fuzzies/compare/v0.4.2...v0.4.3) - 2026-07-17
 
 ### Added
