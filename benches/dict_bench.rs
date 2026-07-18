@@ -64,7 +64,7 @@ fn bench_searches(c: &mut Criterion) {
             &batch_queries,
             |b, queries| {
                 b.iter(|| {
-                    let _res = black_box(dict.batch_search(black_box(queries)));
+                    let _res = black_box(dict.batch_search(black_box(queries)).execute());
                 });
             },
         );
@@ -73,7 +73,7 @@ fn bench_searches(c: &mut Criterion) {
 }
 
 fn configured_criterion() -> Criterion {
-    Criterion::default().measurement_time(Duration::from_secs(10))
+    Criterion::default().measurement_time(Duration::from_secs(5))
 }
 
 criterion_group!(

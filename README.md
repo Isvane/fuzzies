@@ -53,7 +53,7 @@ fn main() -> Result<(), DictionaryError> {
 
     // Batch search (multithreaded, defaults to a distance of 1)
     let queries = vec!["aple", "baxana", "cherri"];
-    let batch_results = dict.batch_search(&queries);
+    let batch_results = dict.batch_search(&queries).execute();
 
     for (query, result) in queries.iter().zip(batch_results) {
         match result {

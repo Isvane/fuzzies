@@ -54,7 +54,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Concurrent Batch Queries
     println!("\n--- Batch Search ---");
     let queries = vec!["aple", "cheriy"];
-    let batch_hits = dict.batch_search(&queries);
+    let batch_hits = dict.batch_search(&queries).execute();
 
     for (query, result) in queries.iter().zip(batch_hits) {
         if let Ok(matches) = result {

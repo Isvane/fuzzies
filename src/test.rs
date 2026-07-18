@@ -78,7 +78,7 @@ mod tests {
             .map(|i| if i % 2 == 0 { "word0050" } else { "baxana" })
             .collect();
 
-        let results = dict.batch_search(&batch_queries);
+        let results = dict.batch_search(&batch_queries).execute();
         // Should received 10 responses
         assert_eq!(results.len(), 10);
 
