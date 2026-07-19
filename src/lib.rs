@@ -168,7 +168,7 @@ impl Dictionary {
     /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
     /// # let dict = Dictionary::open("dict.fst")?;
     /// let queries = ["apple", "baxana", "cheriy"];
-    /// let batch_results = dict.batch_search(&queries);
+    /// let batch_results = dict.batch_search(&queries).execute();
     /// # Ok(())
     /// # }
     /// ```
@@ -314,7 +314,7 @@ impl<'a> SearchBuilder<'a> {
                 counts[b as usize] -= 1;
             }
             for c in counts {
-                char_diff += c.abs() as u16;
+                char_diff += c.unsigned_abs();
             }
 
             let candidate = (dist, char_diff, key_bytes);
