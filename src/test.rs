@@ -59,7 +59,7 @@ mod tests {
         let keys: Vec<&str> = results.iter().map(|r| r.key.as_ref()).collect();
         assert_eq!(keys, vec!["mime", "lime", "time"]);
 
-        // Test transpositiom
+        // Test transposition
         let results = dict
             .search("banaan")
             .limit(1)
@@ -186,5 +186,25 @@ mod tests {
         let keys: Vec<&str> = results.iter().map(|r| r.key.as_ref()).collect();
 
         assert_eq!(keys, vec!["apple", "application"]);
+    }
+
+    #[test]
+    fn test_transposition_priority_over_alphabetical_ties() {
+        let dict = create_test_dict(&["tea", "tech", "the", "eh"]);
+
+        let results = dict
+            .search("teh")
+            .distance(1)
+            .transposition(true)
+            .limit(2)
+            .execute()
+            .unwrap();
+
+        let keys: Vec<&str> = results.iter().map(|r| r.key.as_ref()).collect();
+
+        // 1. "the" wins outright (distance 1, char_diff 0)
+        // 2. "eh" takes second (distance 1, char_diff 1)
+        // "tea" and "tech" (char_diff 2) are correctly evicted despite being alphabetically earlier!
+        assert_eq!(keys, vec!["the", "eh"]);
     }
 }

@@ -289,6 +289,11 @@ impl<'a> SearchBuilder<'a> {
             builder.build_dfa(&self.query)
         });
 
+        let mut query_counts = [0i16; 256];
+        for &b in self.query.as_bytes() {
+            query_counts[b as usize] += 1;
+        }
+
         let mut heap = BinaryHeap::with_capacity(self.limit);
         let mut stream = self.dictionary.map.search(&dfa).into_stream();
 
@@ -303,20 +308,31 @@ impl<'a> SearchBuilder<'a> {
                 _ => self.distance,
             };
 
-            let candidate = (dist, key_bytes);
+            let mut char_diff = 0u16;
+            let mut counts = query_counts;
+            for &b in key_bytes {
+                counts[b as usize] -= 1;
+            }
+            for c in counts {
+                char_diff += c.abs() as u16;
+            }
+
+            let candidate = (dist, char_diff, key_bytes);
 
             if heap.len() < self.limit {
-                heap.push((dist, key_bytes.to_vec()));
+                heap.push((dist, char_diff, key_bytes.to_vec()));
             } else if let Some(mut worst) = heap.peek_mut()
-                && candidate < (worst.0, worst.1.as_slice())
+                && candidate < (worst.0, worst.1, worst.2.as_slice())
             {
-                *worst = (dist, key_bytes.to_vec());
+                *worst = (dist, char_diff, key_bytes.to_vec());
             }
         }
 
-        let mut results: Vec<_> = heap
+        let sorted_elements = heap.into_sorted_vec();
+
+        let results: Vec<_> = sorted_elements
             .into_iter()
-            .map(|(dist, bytes)| {
+            .map(|(dist, _char_diff, bytes)| {
                 Ok(SearchResult {
                     is_exact: dist == 0,
                     key: String::from_utf8(bytes)?,
@@ -324,8 +340,6 @@ impl<'a> SearchBuilder<'a> {
                 })
             })
             .collect::<Result<_, DictionaryError>>()?;
-
-        results.sort_unstable();
 
         Ok(results)
     }
