@@ -2,6 +2,7 @@
 
 use std::cmp::Ordering;
 use std::collections::BinaryHeap;
+use std::fmt::Display;
 use std::fs::File;
 use std::io::{BufRead, BufReader, BufWriter, Write};
 use std::path::Path;
@@ -339,6 +340,12 @@ pub struct SearchResult {
     pub key: String,
     /// Levenshtein distance to the query.
     pub distance: u8,
+}
+
+impl Display for SearchResult {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{} (distance: {})", self.key, self.distance)
+    }
 }
 
 impl PartialOrd for SearchResult {

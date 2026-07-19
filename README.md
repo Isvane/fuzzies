@@ -48,7 +48,7 @@ fn main() -> Result<(), DictionaryError> {
         .execute()?;
     
     for result in results {
-        println!("Found: {} (Distance: {}, Exact: {})", result.key, result.distance, result.is_exact);
+        println!("Found: {}", result);
     }
 
     // Batch search (multithreaded, defaults to a distance of 1)
