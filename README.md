@@ -45,6 +45,7 @@ fn main() -> Result<(), DictionaryError> {
         .distance(2)
         .transposition(true) // Handles adjacent swaps (e.g., "teh" -> "the")
         .prefix(false)       // Set to true for prefix fuzzy lookups
+        // .ge("a").lt("e")  // Optionally restrict search bounds (e.g., 'a' <= key < 'e')
         .limit(5)
         .execute()?;
     

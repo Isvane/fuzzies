@@ -190,6 +190,10 @@ impl Dictionary {
             distance: 1,
             transposition: false,
             prefix: false,
+            ge: None,
+            gt: None,
+            le: None,
+            lt: None,
         }
     }
 }
@@ -202,6 +206,10 @@ pub struct SearchBuilder<'a> {
     distance: u8,
     transposition: bool,
     prefix: bool,
+    ge: Option<Vec<u8>>,
+    gt: Option<Vec<u8>>,
+    le: Option<Vec<u8>>,
+    lt: Option<Vec<u8>>,
 }
 
 /// Query builder for batch search.
@@ -212,6 +220,10 @@ pub struct BatchSearchBuilder<'a, 'b> {
     distance: u8,
     transposition: bool,
     prefix: bool,
+    ge: Option<Vec<u8>>,
+    gt: Option<Vec<u8>>,
+    le: Option<Vec<u8>>,
+    lt: Option<Vec<u8>>,
 }
 
 /// Same as [`SearchBuilder`] but for batch searches.
@@ -236,17 +248,52 @@ impl<'a, 'b> BatchSearchBuilder<'a, 'b> {
         self
     }
 
+    pub fn ge(mut self, bound: impl AsRef<[u8]>) -> Self {
+        self.ge = Some(bound.as_ref().to_vec());
+        self
+    }
+
+    pub fn gt(mut self, bound: impl AsRef<[u8]>) -> Self {
+        self.gt = Some(bound.as_ref().to_vec());
+        self
+    }
+
+    pub fn le(mut self, bound: impl AsRef<[u8]>) -> Self {
+        self.le = Some(bound.as_ref().to_vec());
+        self
+    }
+
+    pub fn lt(mut self, bound: impl AsRef<[u8]>) -> Self {
+        self.lt = Some(bound.as_ref().to_vec());
+        self
+    }
+
     pub fn execute(self) -> Vec<Result<Vec<SearchResult>, DictionaryError>> {
         self.queries
             .par_iter()
             .map(|&query| {
-                self.dictionary
+                let mut search = self
+                    .dictionary
                     .search(query)
                     .limit(self.limit)
                     .distance(self.distance)
                     .transposition(self.transposition)
-                    .prefix(self.prefix)
-                    .execute()
+                    .prefix(self.prefix);
+
+                if let Some(b) = &self.ge {
+                    search = search.ge(b);
+                }
+                if let Some(b) = &self.gt {
+                    search = search.gt(b);
+                }
+                if let Some(b) = &self.le {
+                    search = search.le(b);
+                }
+                if let Some(b) = &self.lt {
+                    search = search.lt(b);
+                }
+
+                search.execute()
             })
             .collect()
     }
@@ -262,6 +309,10 @@ impl<'a> SearchBuilder<'a> {
             distance: 1,
             transposition: false,
             prefix: false,
+            ge: None,
+            gt: None,
+            le: None,
+            lt: None,
         }
     }
 
@@ -289,6 +340,26 @@ impl<'a> SearchBuilder<'a> {
         self
     }
 
+    pub fn ge(mut self, bound: impl AsRef<[u8]>) -> Self {
+        self.ge = Some(bound.as_ref().to_vec());
+        self
+    }
+
+    pub fn gt(mut self, bound: impl AsRef<[u8]>) -> Self {
+        self.gt = Some(bound.as_ref().to_vec());
+        self
+    }
+
+    pub fn le(mut self, bound: impl AsRef<[u8]>) -> Self {
+        self.le = Some(bound.as_ref().to_vec());
+        self
+    }
+
+    pub fn lt(mut self, bound: impl AsRef<[u8]>) -> Self {
+        self.lt = Some(bound.as_ref().to_vec());
+        self
+    }
+
     /// Evaluates the fuzzy search against the dictionary.
     pub fn execute(self) -> Result<Vec<SearchResult>, DictionaryError> {
         let builder = LevenshteinAutomatonBuilder::new(self.distance, self.transposition);
@@ -305,7 +376,22 @@ impl<'a> SearchBuilder<'a> {
         }
 
         let mut heap = BinaryHeap::with_capacity(self.limit);
-        let mut stream = self.dictionary.map.search(&dfa).into_stream();
+        let mut fst_search = self.dictionary.map.search(&dfa);
+
+        if let Some(bound) = &self.ge {
+            fst_search = fst_search.ge(bound);
+        }
+        if let Some(bound) = &self.gt {
+            fst_search = fst_search.gt(bound);
+        }
+        if let Some(bound) = &self.le {
+            fst_search = fst_search.le(bound);
+        }
+        if let Some(bound) = &self.lt {
+            fst_search = fst_search.lt(bound);
+        }
+
+        let mut stream = fst_search.into_stream();
 
         while let Some(key_bytes) = stream.next() {
             let mut state = dfa.start();
