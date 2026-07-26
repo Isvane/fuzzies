@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.3](https://github.com/Isvane/fuzzies/compare/v0.5.2...v0.5.3) - 2026-07-26
+
+### Added
+
+- *(search)* add range bound filters ([#59](https://github.com/Isvane/fuzzies/pull/59))
+- *(dictionary)* add `len` and `is_empty` methods
+
+### Documentation
+
+- update README.md
+
 ## [0.5.2](https://github.com/Isvane/fuzzies/compare/v0.5.1...v0.5.2) - 2026-07-19
 
 ### Documentation
