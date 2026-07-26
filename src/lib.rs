@@ -142,6 +142,16 @@ impl Dictionary {
         self.map.contains(key)
     }
 
+    /// Returns the dictionary length.
+    pub fn len(&self) -> usize {
+        self.map.len()
+    }
+
+    /// Returns `true` if the dictionary is empty.
+    pub fn is_empty(&self) -> bool {
+        self.map.is_empty()
+    }
+
     /// Initializes a fuzzy search query builder.
     ///
     /// # Example
