@@ -1,8 +1,9 @@
-# 🧸 Fuzzies
+# Fuzzies
 
 **Fuzzies** is a fast, friendly integration layer that bridges the gap between low-level finite state transducers (`fst`) and Levenshtein automata, saving you from writing tedious boilerplate.
 
 [![Crates.io](https://img.shields.io/crates/v/fuzzies.svg)](https://crates.io/crates/fuzzies)
+[![Crates.io Total Downloads](https://img.shields.io/crates/d/fuzzies.svg)](https://crates.io/crates/fuzzies)
 [![Docs.rs](https://docs.rs/fuzzies/badge.svg)](https://docs.rs/fuzzies)
 [![Crates.io](https://img.shields.io/crates/l/fuzzies)](https://github.com/Isvane/fuzzies/blob/main/LICENSE)
 
