@@ -404,12 +404,11 @@ impl<'a> SearchBuilder<'a> {
                 _ => self.distance,
             };
 
-            if heap.len() == self.limit {
-                if let Some(worst) = heap.peek() {
-                    if dist > worst.0 {
-                        continue;
-                    }
-                }
+            if heap.len() == self.limit
+                && let Some(worst) = heap.peek()
+                && dist > worst.0
+            {
+                continue;
             }
 
             let mut char_diff = 0u16;

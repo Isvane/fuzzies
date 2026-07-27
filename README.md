@@ -89,27 +89,39 @@ Check out real-world projects utilizing `fuzzies`:
 
 ## 🎈 Performance
 
-The following benchmarks were gathered using Criterion to evaluate lookup speeds for single and parallel batch searches.
-You can re-run these benchmarks on your hardware using `cargo bench`.
+The following benchmarks were gathered using Criterion on an **Intel Core i5-10300H** (4 cores / 8 threads). You can re-run these on your hardware with `cargo bench`.
 
-### Single Search
+### Core Operations
 
-```ignore
-Dictionary Single Search/apple          6.8904 µs/iter (+/- 0.0174 µs)
-Dictionary Single Search/baxana         8.1007 µs/iter (+/- 0.0321 µs)
-Dictionary Single Search/missingword   12.1830 µs/iter (+/- 0.0285 µs)
-```
+| Operation | Function / Task | Mean Time |
+| :--- | :--- | :--- |
+| **Metadata** | `len()` / `is_empty()` | ~448 ps |
+| | `contains` (Hit) | 34.60 ns |
+| | `contains` (Miss) | 11.08 ns |
+| **Loading** | `from_embedded()` | 11.14 ns |
+| | `open()` (Mmap) | 3.68 µs |
+| | `sort()` (In-place) | 109.05 µs |
+| | `build()` | 192.88 µs |
 
-### Batch Search
+### Search Performance
 
-```ignore
-Rayon Parallel Batch/100 queries      406.79 µs/iter (+/- 1.60 µs)
-Rayon Parallel Batch/500 queries     1.9530 ms/iter (+/- 0.0051 ms)
-Rayon Parallel Batch/1000 queries    3.9583 ms/iter (+/- 0.0141 ms)
-```
+| Search Type | Configuration | Mean Time |
+| :--- | :--- | :--- |
+| **Exact** | `distance = 0` | 2.18 µs |
+| **Range Bounded** | `ge='b', le='c'` | 4.35 µs |
+| **Prefix Search** | Starts with string | 5.53 µs |
+| **Fuzzy Search** | `distance = 1` + Transposition | 7.97 µs |
+
+### Parallel Batch Search (Rayon)
+
+| Batch Size | Total Time | Per-Query Avg |
+| :--- | :--- | :--- |
+| **100 queries** | 429.00 µs | ~4.29 µs |
+| **500 queries** | 2.00 ms | ~4.01 µs |
+| **1,000 queries** | 4.02 ms | ~4.02 µs |
 
 > [!NOTE]
-> Benchmarks were executed on an Intel Core i5-10300H (4 cores, 8 threads, Battery set to High Performance mode). Performance may scale significantly higher on more modern or high-end CPUs.
+> Tests were executed in High Performance mode. Times reflect average mid-point estimates from Criterion.
 
 ---
 
