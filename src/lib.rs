@@ -375,7 +375,7 @@ impl<'a> SearchBuilder<'a> {
             query_counts[b as usize] += 1;
         }
 
-        let mut heap = BinaryHeap::with_capacity(self.limit);
+        let mut heap: BinaryHeap<(u8, u16, Vec<u8>)> = BinaryHeap::with_capacity(self.limit);
         let mut fst_search = self.dictionary.map.search(&dfa);
 
         if let Some(bound) = &self.ge {
@@ -403,6 +403,14 @@ impl<'a> SearchBuilder<'a> {
                 Distance::Exact(d) => d,
                 _ => self.distance,
             };
+
+            if heap.len() == self.limit {
+                if let Some(worst) = heap.peek() {
+                    if dist > worst.0 {
+                        continue;
+                    }
+                }
+            }
 
             let mut char_diff = 0u16;
             let mut counts = query_counts;
