@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.4](https://github.com/Isvane/fuzzies/compare/v0.5.3...v0.5.4) - 2026-07-28
+
+### Documentation
+
+- *(examples)* add demo.rs
+
+### Other
+
+- *(bench)* expand benchmark coverage
+- *(search)* early return candidates exceeding worst distance bound
+
 ## [0.5.3](https://github.com/Isvane/fuzzies/compare/v0.5.2...v0.5.3) - 2026-07-26
 
 ### Added
