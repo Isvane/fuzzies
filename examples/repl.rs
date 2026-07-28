@@ -1,6 +1,9 @@
-// An interactive spellchecker demonstrating real-time fuzzy matching.
-// How to run:
-// cargo run --release --example repl
+//! REPL Example
+//!
+//! Run with:
+//! ```sh
+//! cargo run --release --example repl
+//! ```
 
 use fuzzies::{Dictionary, DictionaryError};
 use std::fs::File;
@@ -44,20 +47,18 @@ fn main() -> Result<(), DictionaryError> {
 
         let results = dict
             .search(query)
-            .distance(2) // Catch moderate typos
-            .transposition(true) // Catch swapped letters (e.g., 'teh' -> 'the')
-            .limit(5) // Only show the top 5 suggestions
+            .distance(2)
+            .transposition(true)
+            .limit(5)
             .execute()?;
 
         let duration = start_time.elapsed();
 
-        // Display results
         if results.is_empty() {
-            println!("No matches found for '{}'.", query);
+            println!("No matches found for '{query}'.");
         } else {
-            println!("Found {} matches in {:?}", results.len(), duration);
+            println!("Found {} matches in {duration:?}", results.len());
             for (i, result) in results.into_iter().enumerate() {
-                // Highlight exact matches visually
                 let exact_marker = if result.is_exact { " ✨ [EXACT]" } else { "" };
                 println!("    {}. {}{}", i + 1, result.key, exact_marker);
             }
@@ -68,7 +69,6 @@ fn main() -> Result<(), DictionaryError> {
     Ok(())
 }
 
-/// Helper function to generate a practical dataset if one doesn't exist.
 fn setup_dictionary(fst_path: &str) -> Result<(), DictionaryError> {
     if Path::new(fst_path).exists() {
         return Ok(());
@@ -78,7 +78,6 @@ fn setup_dictionary(fst_path: &str) -> Result<(), DictionaryError> {
     let txt_path = "tech_dictionary.txt";
     let mut file = File::create(txt_path)?;
 
-    // A curated list of common programming/tech words that people often misspell
     let words = [
         "algorithm",
         "application",
@@ -148,10 +147,9 @@ fn setup_dictionary(fst_path: &str) -> Result<(), DictionaryError> {
     ];
 
     for word in words {
-        writeln!(file, "{}", word)?;
+        writeln!(file, "{word}")?;
     }
 
-    // Prepare the raw data and compile the FST
     Dictionary::sort(txt_path)?;
     Dictionary::build(txt_path, fst_path)?;
     println!("Dictionary built successfully!\n");
