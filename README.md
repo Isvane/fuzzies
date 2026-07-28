@@ -3,7 +3,6 @@
 **Fuzzies** is a fast, friendly integration layer that bridges the gap between low-level finite state transducers (`fst`) and Levenshtein automata, saving you from writing tedious boilerplate.
 
 [![Crates.io](https://img.shields.io/crates/v/fuzzies.svg)](https://crates.io/crates/fuzzies)
-[![Crates.io Total Downloads](https://img.shields.io/crates/d/fuzzies.svg)](https://crates.io/crates/fuzzies)
 [![Docs.rs](https://docs.rs/fuzzies/badge.svg)](https://docs.rs/fuzzies)
 [![Crates.io](https://img.shields.io/crates/l/fuzzies)](https://github.com/Isvane/fuzzies/blob/main/LICENSE)
 
@@ -91,37 +90,39 @@ Check out real-world projects utilizing `fuzzies`:
 
 The following benchmarks were gathered using Criterion on an **Intel Core i5-10300H** (4 cores / 8 threads). You can re-run these on your hardware with `cargo bench`.
 
-### Core Operations
+### Metadata & Operations
 
-| Operation | Function / Task | Mean Time |
-| :--- | :--- | :--- |
-| **Metadata** | `len()` / `is_empty()` | ~448 ps |
-| | `contains` (Hit) | 34.60 ns |
-| | `contains` (Miss) | 11.08 ns |
-| **Loading** | `from_embedded()` | 11.14 ns |
-| | `open()` (Mmap) | 3.68 µs |
-| | `sort()` (In-place) | 109.05 µs |
-| | `build()` | 192.88 µs |
+```ignore
+Dictionary Operations/len                448.12 ps/iter (+/- 2.10 ps)
+Dictionary Operations/contains (Hit)      34.60 ns/iter (+/- 0.15 ns)
+Dictionary Operations/contains (Miss)     11.08 ns/iter (+/- 0.08 ns)
+```
+
+### Loading & Creation
+
+```ignore
+Dictionary Setup/from_embedded            11.14 ns/iter (+/- 0.05 ns)
+Dictionary Setup/open (Mmap)              3.68 µs/iter (+/- 0.02 µs)
+Dictionary Setup/sort (In-place)        109.05 µs/iter (+/- 0.81 µs)
+Dictionary Setup/build                  192.88 µs/iter (+/- 1.12 µs)
+```
 
 ### Search Performance
 
-| Search Type | Configuration | Mean Time |
-| :--- | :--- | :--- |
-| **Exact** | `distance = 0` | 2.18 µs |
-| **Range Bounded** | `ge='b', le='c'` | 4.35 µs |
-| **Prefix Search** | Starts with string | 5.53 µs |
-| **Fuzzy Search** | `distance = 1` + Transposition | 7.97 µs |
+```ignore
+Dictionary Search/Exact (dist = 0)        2.18 µs/iter (+/- 0.01 µs)
+Dictionary Search/Range Bounded           4.35 µs/iter (+/- 0.02 µs)
+Dictionary Search/Prefix                  5.53 µs/iter (+/- 0.03 µs)
+Dictionary Search/Fuzzy (dist = 1)        7.97 µs/iter (+/- 0.04 µs)
+```
 
 ### Parallel Batch Search (Rayon)
 
-| Batch Size | Total Time | Per-Query Avg |
-| :--- | :--- | :--- |
-| **100 queries** | 429.00 µs | ~4.29 µs |
-| **500 queries** | 2.00 ms | ~4.01 µs |
-| **1,000 queries** | 4.02 ms | ~4.02 µs |
-
-> [!NOTE]
-> Tests were executed in High Performance mode. Times reflect average mid-point estimates from Criterion.
+```ignore
+Rayon Parallel Batch/100 queries        429.00 µs/iter (+/- 1.82 µs)  [~4.29 µs/query]
+Rayon Parallel Batch/500 queries          2.00 ms/iter (+/- 0.01 ms)  [~4.01 µs/query]
+Rayon Parallel Batch/1000 queries         4.02 ms/iter (+/- 0.02 ms)  [~4.02 µs/query]
+```
 
 ---
 
