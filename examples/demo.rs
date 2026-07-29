@@ -73,7 +73,10 @@ fn main() -> Result<(), Box<dyn Error>> {
     for result in &single_results {
         println!(
             "    • Result: {} | exact: {} | key: '{}' | dist: {}",
-            result, result.is_exact, result.key, result.distance
+            result,
+            result.is_exact(),
+            result.key,
+            result.distance
         );
     }
 

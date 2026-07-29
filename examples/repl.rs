@@ -59,7 +59,11 @@ fn main() -> Result<(), DictionaryError> {
         } else {
             println!("Found {} matches in {duration:?}", results.len());
             for (i, result) in results.into_iter().enumerate() {
-                let exact_marker = if result.is_exact { " ✨ [EXACT]" } else { "" };
+                let exact_marker = if result.is_exact() {
+                    " ✨ [EXACT]"
+                } else {
+                    ""
+                };
                 println!("    {}. {}{}", i + 1, result.key, exact_marker);
             }
         }

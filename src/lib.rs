@@ -437,7 +437,6 @@ impl<'a> SearchBuilder<'a> {
             .into_iter()
             .map(|(dist, _char_diff, bytes)| {
                 Ok(SearchResult {
-                    is_exact: dist == 0,
                     key: String::from_utf8(bytes)?,
                     distance: dist,
                 })
@@ -451,12 +450,17 @@ impl<'a> SearchBuilder<'a> {
 /// A matched item from a fuzzy search.
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub struct SearchResult {
-    /// True if Levenshtein distance is 0.
-    pub is_exact: bool,
     /// The matched string.
     pub key: String,
     /// Levenshtein distance to the query.
     pub distance: u8,
+}
+
+impl SearchResult {
+    #[inline]
+    pub fn is_exact(&self) -> bool {
+        self.distance == 0
+    }
 }
 
 impl Display for SearchResult {
