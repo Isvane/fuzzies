@@ -92,7 +92,7 @@ mod tests {
                 // "baxana" should successfully resolve to "banana"
                 assert_eq!(matches.len(), 1, "Expected exactly 1 match for index {}", i);
                 assert_eq!(matches[0].key, "banana");
-                assert_eq!(matches[0].is_exact, false);
+                assert_eq!(matches[0].is_exact(), false);
             }
         }
     }
