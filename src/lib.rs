@@ -33,15 +33,6 @@ pub struct Dictionary {
 
 impl Dictionary {
     /// Opens a memory-mapped FST dictionary from an existing file.
-    ///
-    /// # Examples
-    /// ```no_run
-    /// # use fuzzies::{Dictionary, DictionaryError};
-    /// # fn main() -> Result<(), DictionaryError> {
-    /// let dict = Dictionary::open("dict.fst")?;
-    /// # Ok(())
-    /// # }
-    /// ```
     pub fn open(path: impl AsRef<Path>) -> Result<Self, DictionaryError> {
         let file = File::open(path)?;
         let mmap = unsafe { Mmap::map(&file)? };
@@ -51,34 +42,12 @@ impl Dictionary {
     }
 
     /// Creates a dictionary from a static byte slice embedded in the binary.
-    ///
-    /// Enables single-file executable distribution by baking the FST data
-    /// directly into your application using `include_bytes!`.
-    ///
-    /// # Example
-    /// ```ignore
-    /// # use fuzzies::Dictionary;
-    /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
-    /// static DICT_DATA: &[u8] = include_bytes!("../assets/words.fst");
-    /// let dict = Dictionary::from_embedded(DICT_DATA)?;
-    /// # Ok(())
-    /// # }
-    /// ```
     pub fn from_embedded(bytes: &'static [u8]) -> Result<Self, DictionaryError> {
         let map = Set::new(DictionarySource::Embedded(bytes))?;
         Ok(Self { map })
     }
 
     /// Compiles a byte-sorted text file into an immutable binary FST.
-    ///
-    /// # Example
-    /// ```no_run
-    /// # use fuzzies::Dictionary;
-    /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
-    /// Dictionary::build("sorted_words.txt", "dict.fst")?;
-    /// # Ok(())
-    /// # }
-    /// ```
     pub fn build(
         input_path: impl AsRef<Path>,
         output_path: impl AsRef<Path>,
@@ -100,16 +69,6 @@ impl Dictionary {
     }
 
     /// Sorts a newline-delimited text file in-place by byte order.
-    /// Prepares raw source text for processing by [`Self::build`].
-    ///
-    /// # Example
-    /// ```no_run
-    /// # use fuzzies::Dictionary;
-    /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
-    /// Dictionary::sort("unsorted_words.txt")?;
-    /// # Ok(())
-    /// # }
-    /// ```
     pub fn sort(path: impl AsRef<Path>) -> Result<(), DictionaryError> {
         let path = path.as_ref();
         let content = std::fs::read_to_string(path)?;
@@ -127,17 +86,6 @@ impl Dictionary {
     }
 
     /// Returns `true` if the dictionary contains the exact key.
-    ///
-    /// # Example
-    /// ```no_run
-    /// # use fuzzies::Dictionary;
-    /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
-    /// # let dict = Dictionary::open("dict.fst")?;
-    /// assert!(dict.contains("apple"));
-    /// assert!(dict.contains(b"banana")); // Works with byte slices too!
-    /// # Ok(())
-    /// # }
-    /// ```
     pub fn contains(&self, key: impl AsRef<[u8]>) -> bool {
         self.map.contains(key)
     }
@@ -153,241 +101,51 @@ impl Dictionary {
     }
 
     /// Initializes a fuzzy search query builder.
-    ///
-    /// # Example
-    /// ```no_run
-    /// # use fuzzies::Dictionary;
-    /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
-    /// # let dict = Dictionary::open("dict.fst")?;
-    /// let results = dict.search("baxana")
-    ///     .distance(2)
-    ///     .limit(5)
-    ///     .execute()?;
-    /// # Ok(())
-    /// # }
-    /// ```
-    pub fn search<'a>(&'a self, query: &str) -> SearchBuilder<'a> {
+    pub fn search<'a>(&'a self, query: &str) -> SearchBuilder<'a, String> {
         SearchBuilder::new(self, query)
     }
 
     /// Executes multiple search queries concurrently.
-    ///
-    /// # Example
-    /// ```no_run
-    /// # use fuzzies::Dictionary;
-    /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
-    /// # let dict = Dictionary::open("dict.fst")?;
-    /// let queries = ["apple", "baxana", "cheriy"];
-    /// let batch_results = dict.batch_search(&queries).execute();
-    /// # Ok(())
-    /// # }
-    /// ```
     pub fn batch_search<'a, 'b>(&'a self, queries: &'b [&'b str]) -> BatchSearchBuilder<'a, 'b> {
-        BatchSearchBuilder {
+        SearchBuilder {
             dictionary: self,
-            queries,
-            limit: 5,
-            distance: 1,
-            transposition: false,
-            prefix: false,
-            ge: None,
-            gt: None,
-            le: None,
-            lt: None,
-        }
-    }
-}
-
-/// Query builder for configuring fuzzy searches.
-pub struct SearchBuilder<'a> {
-    dictionary: &'a Dictionary,
-    query: String,
-    limit: usize,
-    distance: u8,
-    transposition: bool,
-    prefix: bool,
-    ge: Option<Vec<u8>>,
-    gt: Option<Vec<u8>>,
-    le: Option<Vec<u8>>,
-    lt: Option<Vec<u8>>,
-}
-
-/// Query builder for batch search.
-pub struct BatchSearchBuilder<'a, 'b> {
-    dictionary: &'a Dictionary,
-    queries: &'b [&'b str],
-    limit: usize,
-    distance: u8,
-    transposition: bool,
-    prefix: bool,
-    ge: Option<Vec<u8>>,
-    gt: Option<Vec<u8>>,
-    le: Option<Vec<u8>>,
-    lt: Option<Vec<u8>>,
-}
-
-/// Same as [`SearchBuilder`] but for batch searches.
-impl<'a, 'b> BatchSearchBuilder<'a, 'b> {
-    pub fn limit(mut self, limit: usize) -> Self {
-        self.limit = limit;
-        self
-    }
-
-    pub fn distance(mut self, distance: u8) -> Self {
-        self.distance = distance;
-        self
-    }
-
-    pub fn transposition(mut self, transposition: bool) -> Self {
-        self.transposition = transposition;
-        self
-    }
-
-    pub fn prefix(mut self, prefix: bool) -> Self {
-        self.prefix = prefix;
-        self
-    }
-
-    pub fn ge(mut self, bound: impl AsRef<[u8]>) -> Self {
-        self.ge = Some(bound.as_ref().to_vec());
-        self
-    }
-
-    pub fn gt(mut self, bound: impl AsRef<[u8]>) -> Self {
-        self.gt = Some(bound.as_ref().to_vec());
-        self
-    }
-
-    pub fn le(mut self, bound: impl AsRef<[u8]>) -> Self {
-        self.le = Some(bound.as_ref().to_vec());
-        self
-    }
-
-    pub fn lt(mut self, bound: impl AsRef<[u8]>) -> Self {
-        self.lt = Some(bound.as_ref().to_vec());
-        self
-    }
-
-    pub fn execute(self) -> Vec<Result<Vec<SearchResult>, DictionaryError>> {
-        self.queries
-            .par_iter()
-            .map(|&query| {
-                let mut search = self
-                    .dictionary
-                    .search(query)
-                    .limit(self.limit)
-                    .distance(self.distance)
-                    .transposition(self.transposition)
-                    .prefix(self.prefix);
-
-                if let Some(b) = &self.ge {
-                    search = search.ge(b);
-                }
-                if let Some(b) = &self.gt {
-                    search = search.gt(b);
-                }
-                if let Some(b) = &self.le {
-                    search = search.le(b);
-                }
-                if let Some(b) = &self.lt {
-                    search = search.lt(b);
-                }
-
-                search.execute()
-            })
-            .collect()
-    }
-}
-
-impl<'a> SearchBuilder<'a> {
-    /// Defaults: `limit = 5`, `distance = 1`, `transposition = false`.
-    pub fn new(dictionary: &'a Dictionary, query: impl Into<String>) -> Self {
-        Self {
-            dictionary,
-            query: query.into(),
-            limit: 5,
-            distance: 1,
-            transposition: false,
-            prefix: false,
-            ge: None,
-            gt: None,
-            le: None,
-            lt: None,
+            query: queries,
+            options: SearchOptions::default(),
         }
     }
 
-    /// Max number of results to return.
-    pub fn limit(mut self, limit: usize) -> Self {
-        self.limit = limit;
-        self
-    }
+    /// Search implementation shared by single and batch queries.
+    fn executes(
+        &self,
+        query: &str,
+        options: &SearchOptions,
+    ) -> Result<Vec<SearchResult>, DictionaryError> {
+        let builder = LevenshteinAutomatonBuilder::new(options.distance, options.transposition);
 
-    /// Maximum Levenshtein distance for fuzzy searching (hard-capped at 2).
-    pub fn distance(mut self, distance: u8) -> Self {
-        self.distance = distance.min(2);
-        self
-    }
-
-    /// Whether to allow adjacent character swaps (e.g., "teh" -> "the").
-    pub fn transposition(mut self, transposition: bool) -> Self {
-        self.transposition = transposition;
-        self
-    }
-
-    /// Whether to perform a prefix fuzzy search.
-    pub fn prefix(mut self, prefix: bool) -> Self {
-        self.prefix = prefix;
-        self
-    }
-
-    pub fn ge(mut self, bound: impl AsRef<[u8]>) -> Self {
-        self.ge = Some(bound.as_ref().to_vec());
-        self
-    }
-
-    pub fn gt(mut self, bound: impl AsRef<[u8]>) -> Self {
-        self.gt = Some(bound.as_ref().to_vec());
-        self
-    }
-
-    pub fn le(mut self, bound: impl AsRef<[u8]>) -> Self {
-        self.le = Some(bound.as_ref().to_vec());
-        self
-    }
-
-    pub fn lt(mut self, bound: impl AsRef<[u8]>) -> Self {
-        self.lt = Some(bound.as_ref().to_vec());
-        self
-    }
-
-    /// Evaluates the fuzzy search against the dictionary.
-    pub fn execute(self) -> Result<Vec<SearchResult>, DictionaryError> {
-        let builder = LevenshteinAutomatonBuilder::new(self.distance, self.transposition);
-
-        let dfa = FstDfaWrapper(if self.prefix {
-            builder.build_prefix_dfa(&self.query)
+        let dfa = FstDfaWrapper(if options.prefix {
+            builder.build_prefix_dfa(query)
         } else {
-            builder.build_dfa(&self.query)
+            builder.build_dfa(query)
         });
 
         let mut query_counts = [0i16; 256];
-        for &b in self.query.as_bytes() {
+        for &b in query.as_bytes() {
             query_counts[b as usize] += 1;
         }
 
-        let mut heap: BinaryHeap<(u8, u16, Vec<u8>)> = BinaryHeap::with_capacity(self.limit);
-        let mut fst_search = self.dictionary.map.search(&dfa);
+        let mut heap: BinaryHeap<(u8, u16, Vec<u8>)> = BinaryHeap::with_capacity(options.limit);
+        let mut fst_search = self.map.search(&dfa);
 
-        if let Some(bound) = &self.ge {
+        if let Some(bound) = &options.ge {
             fst_search = fst_search.ge(bound);
         }
-        if let Some(bound) = &self.gt {
+        if let Some(bound) = &options.gt {
             fst_search = fst_search.gt(bound);
         }
-        if let Some(bound) = &self.le {
+        if let Some(bound) = &options.le {
             fst_search = fst_search.le(bound);
         }
-        if let Some(bound) = &self.lt {
+        if let Some(bound) = &options.lt {
             fst_search = fst_search.lt(bound);
         }
 
@@ -401,10 +159,10 @@ impl<'a> SearchBuilder<'a> {
 
             let dist = match dfa.0.distance(state) {
                 Distance::Exact(d) => d,
-                _ => self.distance,
+                _ => options.distance,
             };
 
-            if heap.len() == self.limit
+            if heap.len() == options.limit
                 && let Some(worst) = heap.peek()
                 && dist > worst.0
             {
@@ -422,7 +180,7 @@ impl<'a> SearchBuilder<'a> {
 
             let candidate = (dist, char_diff, key_bytes);
 
-            if heap.len() < self.limit {
+            if heap.len() < options.limit {
                 heap.push((dist, char_diff, key_bytes.to_vec()));
             } else if let Some(mut worst) = heap.peek_mut()
                 && candidate < (worst.0, worst.1, worst.2.as_slice())
@@ -444,6 +202,116 @@ impl<'a> SearchBuilder<'a> {
             .collect::<Result<_, DictionaryError>>()?;
 
         Ok(results)
+    }
+}
+
+/// Internal configuration options for search queries.
+#[derive(Clone, Debug)]
+struct SearchOptions {
+    limit: usize,
+    distance: u8,
+    transposition: bool,
+    prefix: bool,
+    ge: Option<Vec<u8>>,
+    gt: Option<Vec<u8>>,
+    le: Option<Vec<u8>>,
+    lt: Option<Vec<u8>>,
+}
+
+impl Default for SearchOptions {
+    fn default() -> Self {
+        Self {
+            limit: 5,
+            distance: 1,
+            transposition: false,
+            prefix: false,
+            ge: None,
+            gt: None,
+            le: None,
+            lt: None,
+        }
+    }
+}
+
+/// Query builder for configuring single and batch fuzzy searches.
+pub struct SearchBuilder<'a, Q = String> {
+    dictionary: &'a Dictionary,
+    query: Q,
+    options: SearchOptions,
+}
+
+/// Query builder type alias for batch searches.
+pub type BatchSearchBuilder<'a, 'b> = SearchBuilder<'a, &'b [&'b str]>;
+
+impl<'a, Q> SearchBuilder<'a, Q> {
+    /// Max number of results to return.
+    pub fn limit(mut self, limit: usize) -> Self {
+        self.options.limit = limit;
+        self
+    }
+
+    /// Maximum Levenshtein distance for fuzzy searching (hard-capped at 2).
+    pub fn distance(mut self, distance: u8) -> Self {
+        self.options.distance = distance.min(2);
+        self
+    }
+
+    /// Whether to allow adjacent character swaps (e.g., "teh" -> "the").
+    pub fn transposition(mut self, transposition: bool) -> Self {
+        self.options.transposition = transposition;
+        self
+    }
+
+    /// Whether to perform a prefix fuzzy search.
+    pub fn prefix(mut self, prefix: bool) -> Self {
+        self.options.prefix = prefix;
+        self
+    }
+
+    pub fn ge(mut self, bound: impl AsRef<[u8]>) -> Self {
+        self.options.ge = Some(bound.as_ref().to_vec());
+        self
+    }
+
+    pub fn gt(mut self, bound: impl AsRef<[u8]>) -> Self {
+        self.options.gt = Some(bound.as_ref().to_vec());
+        self
+    }
+
+    pub fn le(mut self, bound: impl AsRef<[u8]>) -> Self {
+        self.options.le = Some(bound.as_ref().to_vec());
+        self
+    }
+
+    pub fn lt(mut self, bound: impl AsRef<[u8]>) -> Self {
+        self.options.lt = Some(bound.as_ref().to_vec());
+        self
+    }
+}
+
+impl<'a> SearchBuilder<'a, String> {
+    /// Defaults: `limit = 5`, `distance = 1`, `transposition = false`.
+    pub fn new(dictionary: &'a Dictionary, query: impl Into<String>) -> Self {
+        Self {
+            dictionary,
+            query: query.into(),
+            options: SearchOptions::default(),
+        }
+    }
+
+    /// Evaluates the fuzzy search against the dictionary.
+    pub fn execute(self) -> Result<Vec<SearchResult>, DictionaryError> {
+        self.dictionary.executes(&self.query, &self.options)
+    }
+}
+
+impl<'a, 'b> SearchBuilder<'a, &'b [&'b str]> {
+    /// Evaluates multiple search queries concurrently.
+    pub fn execute(self) -> Vec<Result<Vec<SearchResult>, DictionaryError>> {
+        self.query
+            .par_iter()
+            .map(|&q| self.dictionary.executes(q, &self.options))
+            .collect()
     }
 }
 
