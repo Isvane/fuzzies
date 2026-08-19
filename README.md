@@ -78,14 +78,6 @@ let dict = Dictionary::from_embedded(DICT_DATA)?;
 
 ---
 
-## Built with Fuzzies
-
-Check out real-world projects utilizing `fuzzies`:
-
-* **[Mamoru](https://github.com/Isvane/mamoru)**: A blazing-fast Git `commit-msg` hook that embeds a compiled dictionary of over 106,000 words to instantly catch and block typos before they make it into your version control history.
-
----
-
 ## 🎈 Performance
 
 The following benchmarks were gathered using Criterion on an **Intel Core i5-10300H** (4 cores / 8 threads). You can re-run these on your hardware with `cargo bench`.
@@ -103,6 +95,19 @@ The following benchmarks were gathered using Criterion on an **Intel Core i5-103
 | Range Search (`'b'..='c'`) | 4.35 µs | 626.37 µs | Result-size bound |
 | Batch (1,000 queries) | 4.02 ms (4.0 µs/q) | 14.88 ms (14.8 µs/q) | ~3.7x |
 
+---
+
+## Safety
+
+This crate uses `unsafe` in a single location:
+
+* **Memory-Mapped I/O (`Dictionary::open`)**: Calls `memmap2::Mmap::map(&file)` to map FST data directly from disk into memory. 
+
+### Invariants & Requirements
+
+While memory mapping allows zero-copy lookups with near-instant load times, **undefined behavior can occur** if the underlying file on disk is modified, truncated, or corrupted by another process while the `Dictionary` is active in memory.
+
+If your application operates in an environment where external processes might mutate file assets concurrently, consider using `Dictionary::from_embedded` or `Dictionary::from_iterator` instead to ensure memory safety guarantees.
 
 ---
 
