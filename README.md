@@ -1,12 +1,21 @@
 # Fuzzies
 
-**Fuzzies** is a fast, friendly integration layer that bridges the gap between low-level finite state transducers (`fst`) and Levenshtein automata, saving you from writing tedious boilerplate.
+**Fuzzies** is a fast fuzzy string matching engine built on `fst` and `levenshtein-automata`. It comes pre-configured with memory-mapped storage (`memmap2`), parallel batch search (`rayon`), and transposition support.
 
 [![Crates.io](https://img.shields.io/crates/v/fuzzies.svg)](https://crates.io/crates/fuzzies)
 [![Docs.rs](https://docs.rs/fuzzies/badge.svg)](https://docs.rs/fuzzies)
 [![Crates.io](https://img.shields.io/crates/l/fuzzies)](https://github.com/Isvane/fuzzies/blob/main/LICENSE)
 
 More information about this crate can be found in the [crate documentation](https://docs.rs/fuzzies)
+
+---
+
+## Features
+
+* **Zero-Copy Memory Mapping**: Instantly query huge disk-backed datasets via `memmap2`.
+* **Out-of-the-Box Transpositions**: Handles Damerau-Levenshtein transposition edits natively alongside standard insertion, deletion, and substitution.
+* **Parallel Batching**: Built-in multi-threaded query execution powered by `rayon`.
+* **Zero Boilerplate**: Avoid manual glue code between `fst` state machines and `levenshtein-automata`.
 
 ---
 
