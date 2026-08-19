@@ -47,6 +47,29 @@ impl Dictionary {
         Ok(Self { map })
     }
 
+    /// Creates a dictionary in memory from an iterator of keys.
+    pub fn from_iterator<T, I>(iter: I) -> Result<Self, DictionaryError>
+    where
+        T: AsRef<[u8]>,
+        I: IntoIterator<Item = T>,
+    {
+        let mut keys: Vec<Vec<u8>> = iter
+            .into_iter()
+            .map(|item| item.as_ref().to_vec())
+            .collect();
+
+        keys.sort_unstable();
+        keys.dedup();
+
+        let mut builder = SetBuilder::memory();
+        builder.extend_iter(keys)?;
+
+        let bytes = builder.into_inner()?;
+        let map = Set::new(DictionarySource::Owned(bytes))?;
+
+        Ok(Self { map })
+    }
+
     /// Compiles a byte-sorted text file into an immutable binary FST.
     pub fn build(
         input_path: impl AsRef<Path>,
@@ -355,6 +378,7 @@ impl Ord for SearchResult {
 enum DictionarySource {
     Mmapped(Mmap),
     Embedded(&'static [u8]),
+    Owned(Vec<u8>),
 }
 
 impl AsRef<[u8]> for DictionarySource {
@@ -362,6 +386,7 @@ impl AsRef<[u8]> for DictionarySource {
         match self {
             DictionarySource::Mmapped(mmap) => mmap,
             DictionarySource::Embedded(slice) => slice,
+            DictionarySource::Owned(vec) => vec,
         }
     }
 }
