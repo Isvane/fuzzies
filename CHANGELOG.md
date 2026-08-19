@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.0](https://github.com/Isvane/fuzzies/compare/v0.5.4...v0.6.0) - 2026-08-19
+
+### Added
+
+- *(dictionary)* add `from_iterator` method ([#64](https://github.com/Isvane/fuzzies/pull/64))
+
+### Documentation
+
+- update benchmark data
+
+### Refactored
+
+- *(search)* unify search builder ([#63](https://github.com/Isvane/fuzzies/pull/63))
+- *(search)* [**breaking**] replace `is_exact` field with helper method ([#62](https://github.com/Isvane/fuzzies/pull/62))
+
 ## [0.5.4](https://github.com/Isvane/fuzzies/compare/v0.5.3...v0.5.4) - 2026-07-28
 
 ### Documentation
