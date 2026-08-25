@@ -5,7 +5,7 @@
 //! cargo run --example demo
 //! ```
 
-use fuzzies::Dictionary;
+use fuzzies::{Dictionary, SearchResult};
 use std::error::Error;
 use std::fs::{self, File};
 use std::io::Write;
@@ -79,6 +79,13 @@ fn main() -> Result<(), Box<dyn Error>> {
             result.distance
         );
     }
+
+    let resultz = SearchResult {
+        key: "apple".into(),
+        distance: 1,
+    };
+    let score = resultz.similarity("appl");
+    println!("{score}");
 
     println!("\n[6] Fuzzy Search with Lexicographical Range Bounds:");
     println!("    Searching 'pech' bounded strictly between 'p' and 'ph':");
