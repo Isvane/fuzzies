@@ -80,13 +80,6 @@ fn main() -> Result<(), Box<dyn Error>> {
         );
     }
 
-    let resultz = SearchResult {
-        key: "apple".into(),
-        distance: 1,
-    };
-    let score = resultz.similarity("appl");
-    println!("{score}");
-
     println!("\n[6] Fuzzy Search with Lexicographical Range Bounds:");
     println!("    Searching 'pech' bounded strictly between 'p' and 'ph':");
 
@@ -134,6 +127,19 @@ fn main() -> Result<(), Box<dyn Error>> {
             Err(err) => eprintln!("    • Query '{}' failed: {}", query, err),
         }
     }
+
+    println!("\n[8] Testing SeachResult functions:");
+
+    let resultz = SearchResult {
+        key: "apple".into(),
+        distance: 1,
+    };
+    let score = resultz.similarity("appl");
+    println!("   • Similarity: '{}'", score);
+
+    let search = dict.search("apple").execute()?;
+    let exact = search.iter().any(|r| r.is_exact());
+    println!("   • Exact: '{}'", exact);
 
     let _ = fs::remove_file(raw_file_path);
     let _ = fs::remove_file(fst_file_path);
