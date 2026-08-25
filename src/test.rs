@@ -4,7 +4,7 @@ mod tests {
     use std::io::{BufRead, BufReader, Write};
 
     use crate::{Dictionary, DictionarySource};
-    use fst::{Set, SetBuilder};
+    use fst::SetBuilder;
 
     fn create_test_dict(words: &[&str]) -> Dictionary {
         let mut sorted = words.to_vec();
@@ -22,7 +22,7 @@ mod tests {
         let mmap = mmap.make_read_only().unwrap();
 
         Dictionary {
-            map: Set::new(DictionarySource::Mmapped(mmap)).unwrap(),
+            source: DictionarySource::Mmapped(mmap),
         }
     }
 
