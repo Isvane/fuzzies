@@ -1,21 +1,12 @@
 # Fuzzies
 
-**Fuzzies** is a fast fuzzy string matching engine built on `fst` and `levenshtein-automata`. It comes pre-configured with memory-mapped storage (`memmap2`), parallel batch search (`rayon`), and transposition support.
+**Fuzzies** is a fast fuzzy string matching crate built on [fst](https://github.com/BurntSushi/fst) and [levenshtein-automata](https://github.com/tantivy-search/levenshtein-automata)
 
 [![Crates.io](https://img.shields.io/crates/v/fuzzies.svg)](https://crates.io/crates/fuzzies)
 [![Docs.rs](https://docs.rs/fuzzies/badge.svg)](https://docs.rs/fuzzies)
 [![Crates.io](https://img.shields.io/crates/l/fuzzies)](https://github.com/Isvane/fuzzies/blob/main/LICENSE)
 
 More information about this crate can be found in the [crate documentation](https://docs.rs/fuzzies)
-
----
-
-## Features
-
-* **Zero-Copy Memory Mapping**: Instantly query huge disk-backed datasets via `memmap2`.
-* **Out-of-the-Box Transpositions**: Handles Damerau-Levenshtein transposition edits natively alongside standard insertion, deletion, and substitution.
-* **Parallel Batching**: Built-in multi-threaded query execution powered by `rayon`.
-* **Zero Boilerplate**: Avoid manual glue code between `fst` state machines and `levenshtein-automata`.
 
 ---
 
@@ -48,12 +39,18 @@ fn main() -> Result<(), DictionaryError> {
         println!("Exact match found!");
     }
 
-    // Perform a fuzzy search with a max typo distance of 2 and limit of 5 results
+    // Quick single-suggestion lookup
+    if let Some(top_match) = dict.suggest("banaan")? {
+        println!("Best suggestion: {}", top_match.key);
+    }
+
+    // Perform a fuzzy search with custom options
     let results = dict.search("banaan")
         .distance(2)
         .transposition(true) // Handles adjacent swaps (e.g., "teh" -> "the")
         .prefix(false)       // Set to true for prefix fuzzy lookups
-        // .ge("a").lt("e")  // Optionally restrict search bounds (e.g., 'a' <= key < 'e')
+        .ge("a")             // Optionally restrict search bounds (key >= "a")
+        .lt("e")             // (key < "e")
         .limit(5)
         .execute()?;
     
@@ -76,13 +73,16 @@ fn main() -> Result<(), DictionaryError> {
 }
 ```
 
-### Embedding Data
-
-If you don't want to manage external `.fst` files on disk, embed the dataset directly into your application:
+If you don't want to manage external `.fst` files on disk, you can construct a `Dictionary` directly:
 
 ```rust, ignore
+// From an embedded FST binary slice:
 static DICT_DATA: &[u8] = include_bytes!("../assets/words.fst");
 let dict = Dictionary::from_embedded(DICT_DATA)?;
+
+// From an iterator of strings (automatically sorted and deduplicated):
+let words = vec!["apple", "banana", "cherry"];
+let dict = Dictionary::from_iterator(words)?;
 ```
 
 ---
@@ -123,12 +123,6 @@ The following benchmarks were gathered using Criterion on an **Intel Core i5-103
 This crate uses `unsafe` in a single location:
 
 * **Memory-Mapped I/O (`Dictionary::open`)**: Calls `memmap2::Mmap::map(&file)` to map FST data directly from disk into memory. 
-
-### Invariants & Requirements
-
-While memory mapping allows zero-copy lookups with near-instant load times, **undefined behavior can occur** if the underlying file on disk is modified, truncated, or corrupted by another process while the `Dictionary` is active in memory.
-
-If your application operates in an environment where external processes might mutate file assets concurrently, consider using `Dictionary::from_embedded` or `Dictionary::from_iterator` instead to ensure memory safety guarantees.
 
 ---
 
