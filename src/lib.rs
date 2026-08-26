@@ -116,6 +116,12 @@ impl Dictionary {
         Ok(())
     }
 
+    /// Returns the single top match for a query if exist.
+    pub fn suggest(&self, query: &str) -> Result<Option<SearchResult>, DictionaryError> {
+        let result = self.search(query).limit(1).execute()?;
+        Ok(result.into_iter().next())
+    }
+
     /// Returns `true` if the dictionary contains the exact key.
     pub fn contains(&self, key: impl AsRef<[u8]>) -> bool {
         self.as_set().contains(key)
