@@ -369,6 +369,16 @@ impl SearchResult {
     pub fn is_exact(&self) -> bool {
         self.distance == 0
     }
+
+    pub fn similarity(&self, query: &str) -> f32 {
+        let max_len = std::cmp::max(query.chars().count(), self.key.chars().count());
+
+        if max_len == 0 {
+            return 1.0;
+        }
+
+        1.0 - (self.distance as f32 / max_len as f32)
+    }
 }
 
 impl Display for SearchResult {
