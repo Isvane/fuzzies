@@ -28,7 +28,7 @@ pub enum DictionaryError {
 
 /// Memory-mapped FST dictionary for fuzzy string lookups.
 pub struct Dictionary {
-    map: Set<DictionarySource>,
+    source: DictionarySource,
 }
 
 impl Dictionary {
@@ -36,15 +36,20 @@ impl Dictionary {
     pub fn open(path: impl AsRef<Path>) -> Result<Self, DictionaryError> {
         let file = File::open(path)?;
         let mmap = unsafe { Mmap::map(&file)? };
-        let map = Set::new(DictionarySource::Mmapped(mmap))?;
 
-        Ok(Self { map })
+        Set::new(&*mmap)?;
+
+        Ok(Self {
+            source: DictionarySource::Mmapped(mmap),
+        })
     }
 
     /// Creates a dictionary from a static byte slice embedded in the binary.
     pub fn from_embedded(bytes: &'static [u8]) -> Result<Self, DictionaryError> {
-        let map = Set::new(DictionarySource::Embedded(bytes))?;
-        Ok(Self { map })
+        Set::new(bytes)?;
+        Ok(Self {
+            source: DictionarySource::Embedded(bytes),
+        })
     }
 
     /// Creates a dictionary in memory from an iterator of keys.
@@ -65,9 +70,12 @@ impl Dictionary {
         builder.extend_iter(keys)?;
 
         let bytes = builder.into_inner()?;
-        let map = Set::new(DictionarySource::Owned(bytes))?;
 
-        Ok(Self { map })
+        Set::new(bytes.as_slice())?;
+
+        Ok(Self {
+            source: DictionarySource::Owned(bytes),
+        })
     }
 
     /// Compiles a byte-sorted text file into an immutable binary FST.
@@ -110,17 +118,17 @@ impl Dictionary {
 
     /// Returns `true` if the dictionary contains the exact key.
     pub fn contains(&self, key: impl AsRef<[u8]>) -> bool {
-        self.map.contains(key)
+        self.as_set().contains(key)
     }
 
     /// Returns the dictionary length.
     pub fn len(&self) -> usize {
-        self.map.len()
+        self.as_set().len()
     }
 
     /// Returns `true` if the dictionary is empty.
     pub fn is_empty(&self) -> bool {
-        self.map.is_empty()
+        self.as_set().is_empty()
     }
 
     /// Initializes a fuzzy search query builder.
@@ -157,7 +165,9 @@ impl Dictionary {
         }
 
         let mut heap: BinaryHeap<(u8, u16, Vec<u8>)> = BinaryHeap::with_capacity(options.limit);
-        let mut fst_search = self.map.search(&dfa);
+        let set = self.as_set();
+
+        let mut fst_search = set.search(&dfa);
 
         if let Some(bound) = &options.ge {
             fst_search = fst_search.ge(bound);
@@ -225,6 +235,13 @@ impl Dictionary {
             .collect::<Result<_, DictionaryError>>()?;
 
         Ok(results)
+    }
+
+    /// Helper to get a zero-cost FST view.
+    /// Unwrapping is safe because we validate the FST at construction time.
+    #[inline]
+    fn as_set(&self) -> Set<&[u8]> {
+        Set::new(self.source.as_ref()).expect("FST data is corrupted")
     }
 }
 
