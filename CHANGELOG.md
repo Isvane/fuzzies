@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.1](https://github.com/Isvane/fuzzies/compare/v0.6.0...v0.6.1) - 2026-08-26
+
+### Added
+
+- *(dictionary)* add `suggest` method ([#68](https://github.com/Isvane/fuzzies/pull/68))
+- feat(SearchResult) add `similarity` function ([#67](https://github.com/Isvane/fuzzies/pull/67))
+
+### Documentation
+
+- update README.md
+- update benchmark data
+- document safety
+
+### Refactored
+
+- *(dictionary)* store `DictionarySource` directly ([#66](https://github.com/Isvane/fuzzies/pull/66))
+
 ## [0.6.0](https://github.com/Isvane/fuzzies/compare/v0.5.4...v0.6.0) - 2026-08-19
 
 ### Added
