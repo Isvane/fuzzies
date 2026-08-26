@@ -92,17 +92,29 @@ let dict = Dictionary::from_embedded(DICT_DATA)?;
 The following benchmarks were gathered using Criterion on an **Intel Core i5-10300H** (4 cores / 8 threads). You can re-run these on your hardware with `cargo bench`.
 
 > [!NOTE] 
-> Running cargo bench on the published crate executes against a small, dynamically generated dataset. The 106,000-word benchmarks shown below were gathered independently using a local dictionary.
+> Running `cargo bench` on the published crate executes against a small, dynamically generated dataset. The 106,000-word benchmarks shown below were gathered independently using a local dictionary.
+
+### Setup & Initialization
+
+| Operation | 1,000 Entries | 106,000 Entries |
+|-----------|------:|------:|
+| `Dictionary::sort` | 36.87 µs | — |
+| `Dictionary::build` | 130.97 µs | — |
+| `Dictionary::open` | 2.78 µs | 6.96 µs |
+| `Dictionary::from_embedded`| 11.75 ns | 11.77 ns |
+| `Dictionary::len` / `is_empty` | ~0.45 ns | ~0.45 ns |
+
+### Search & Queries
 
 | Operation | 1,000 Entries | 106,000 Entries | Scaling Factor |
 |-----------|---------------------:|----------------------:|---------------:|
-| contains (Hit) | 34.60 ns | 65.00 ns | ~1.8x |
-| contains (Miss) | 11.08 ns | 100.06 ns | ~9.0x |
-| Exact Search (dist = 0) | 2.18 µs | 4.48 µs | ~2.0x |
-| Fuzzy Search (dist = 1) | 7.97 µs | 61.58 µs | ~7.7x |
-| Prefix Search | 5.53 µs | 125.36 µs | Result-size bound |
-| Range Search (`'b'..='c'`) | 4.35 µs | 626.37 µs | Result-size bound |
-| Batch (1,000 queries) | 4.02 ms (4.0 µs/q) | 14.88 ms (14.8 µs/q) | ~3.7x |
+| contains (Hit) | 34.50 ns | 63.94 ns | ~1.9x |
+| contains (Miss) | 11.13 ns | 97.84 ns | ~8.8x |
+| Exact Search (dist = 0) | 2.01 µs | 4.26 µs | ~2.1x |
+| Fuzzy Search (dist = 1) | 8.31 µs | 64.55 µs | ~7.8x |
+| Prefix Search | 5.43 µs | 125.95 µs | Result-size bound |
+| Range Search (`'b'..='c'`) | 4.19 µs | 637.90 µs | Result-size bound |
+| Batch (1,000 queries) | 4.08 ms (4.0 µs/q) | 14.88 ms (14.8 µs/q) | ~3.6x |
 
 ---
 
