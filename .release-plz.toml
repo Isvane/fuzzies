@@ -13,6 +13,8 @@ A huge thank you to everyone who contributed to this release:
 
 [changelog]
 commit_parsers = [
+  { message = "^.*\\(node\\):", skip = true },
+
   { message = "^chore", skip = true },
   { message = "^ci", skip = true },
   { message = "^test", skip = true },

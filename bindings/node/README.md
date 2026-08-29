@@ -10,16 +10,16 @@ npm install fuzzies-node
 ```javascript
 const { Dictionary } = require('fuzzies-node');
 
-async function main() {
+function main() {
   // Prepare your raw text file (must be sorted lexicographically)
   // Fuzzies provides a handy in-place sorter for convenience:
-  await Dictionary.sort('words.txt');
+  Dictionary.sort('words.txt');
 
   // Build the immutable binary FST from the sorted text file
-  await Dictionary.build('words.txt', 'words.fst');
+  Dictionary.build('words.txt', 'words.fst');
 
   // Load the dictionary (memory-mapped from disk)
-  const dict = await Dictionary.open('words.fst');
+  const dict = Dictionary.open('words.fst');
 
   // Alternatively, build directly from an array in memory:
   // const dict = Dictionary.fromArray(["apple", "banana", "cherry"]);
@@ -47,8 +47,6 @@ async function main() {
     console.log(`Found: ${result.key} (distance: ${result.distance})`);
   }
 }
-
-main().catch(console.error);
 ```
 
 ## Missing Features

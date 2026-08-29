@@ -33,7 +33,7 @@ pub struct Dictionary {
 #[napi]
 impl Dictionary {
   #[napi(factory)]
-  pub async fn open(path: String) -> Result<Self> {
+  pub fn open(path: String) -> Result<Self> {
     let inner = RustDictionary::open(&path)
       .map_err(|e| Error::from_reason(format!("Failed to open dictionary: {}", e)))?;
     Ok(Self { inner })
@@ -48,7 +48,7 @@ impl Dictionary {
 
   /// Compiles a byte-sorted text file into an immutable binary FST.
   #[napi]
-  pub async fn build(input_path: String, output_path: String) -> Result<()> {
+  pub fn build(input_path: String, output_path: String) -> Result<()> {
     RustDictionary::build(&input_path, &output_path)
       .map_err(|e| Error::from_reason(format!("Failed to build dictionary: {}", e)))?;
     Ok(())
@@ -56,7 +56,7 @@ impl Dictionary {
 
   /// Sorts a newline-delimited text file in-place by byte order.
   #[napi]
-  pub async fn sort(path: String) -> Result<()> {
+  pub fn sort(path: String) -> Result<()> {
     RustDictionary::sort(&path)
       .map_err(|e| Error::from_reason(format!("Failed to sort file: {}", e)))?;
     Ok(())
