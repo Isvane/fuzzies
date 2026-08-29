@@ -234,49 +234,77 @@ jobs:
           options: '-v ${{ github.workspace }}:${{ github.workspace }} -w ${{ github.workspace }}/bindings/node --platform ${{ steps.docker.outputs.PLATFORM }}'
           args: npm run test
   publish:
-    name: Publish
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-      id-token: write
-    needs:
-      - lint
-      - test-macOS-windows-binding
-      - test-linux-binding
-    steps:
-      - uses: actions/checkout@v7
-      - name: Setup node
-        uses: actions/setup-node@v7
-        with:
-          node-version: 24
-      - name: Setup bun
-        uses: oven-sh/setup-bun@v2
-      - name: Install dependencies
-        run: bun install
-      - name: create npm dirs
-        run: bun run napi create-npm-dirs
-      - name: Download all artifacts
-        uses: actions/download-artifact@v8
-        with:
-          path: bindings/node/artifacts
-      - name: Move artifacts
-        run: bun run artifacts
-      - name: List packages
-        run: ls -R ./npm
-        shell: bash
-      - name: Publish
-        run: |
-          npm config set provenance true
-          # Check if it's a PR or a real release commit
-          if [ "${{ github.event_name }}" == "pull_request" ]; then
-            echo "Running in PR mode: Performing npm publish dry-run..."
-            npm publish --access public --dry-run
-          elif git log -1 --pretty=%B | grep "^[0-9]\+\.[0-9]\+\.[0-9]\+$"; then
-            echo "//registry.npmjs.org/:_authToken=$NPM_TOKEN" >> ~/.npmrc
-            npm publish --access public
-          else
-            echo "Not a release commit, skipping publish"
-          fi
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+      name: Publish
+      runs-on: ubuntu-latest
+      permissions:
+        contents: write
+        id-token: write
+      needs:
+        - lint
+        - test-macOS-windows-binding
+        - test-linux-binding
+      steps:
+        - uses: actions/checkout@v7
+        - name: Setup node
+          uses: actions/setup-node@v7
+          with:
+            node-version: 24
+        - name: Setup bun
+          uses: oven-sh/setup-bun@v2
+        - name: Install dependencies
+          run: bun install
+        - name: create npm dirs
+          run: bun run napi create-npm-dirs
+        - name: Download all artifacts
+          uses: actions/download-artifact@v8
+          with:
+            path: bindings/node/artifacts
+        - name: Move artifacts
+          run: bun run artifacts
+        - name: List packages
+          run: ls -R ./npm
+          shell: bash
+        - name: Check Release Commit
+          id: release
+          run: |
+            COMMIT_MSG=$(git log -1 --pretty=%s)
+            echo "Commit message: $COMMIT_MSG"
+
+            if echo "$COMMIT_MSG" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+( \(#[0-9]+\))?$'; then
+              VERSION=$(echo "$COMMIT_MSG" | grep -Eo '^[0-9]+\.[0-9]+\.[0-9]+')
+              echo "version=$VERSION" >> $GITHUB_OUTPUT
+              echo "is_release=true" >> $GITHUB_OUTPUT
+              echo "Detected release version: $VERSION"
+            else
+              echo "is_release=false" >> $GITHUB_OUTPUT
+              echo "Not a release commit."
+            fi
+
+        - name: Publish to NPM
+          env:
+            GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+            NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+          run: |
+            npm config set provenance true
+            if [ "${{ github.event_name }}" == "pull_request" ]; then
+              echo "Running in PR mode: Performing npm publish dry-run..."
+              npm publish --access public --dry-run
+            elif [ "${{ steps.release.outputs.is_release }}" == "true" ]; then
+              echo "//registry.npmjs.org/:_authToken=$NPM_TOKEN" >> ~/.npmrc
+              npm publish --access public
+            else
+              echo "Not a release commit, skipping publish."
+            fi
+
+        - name: Create GitHub Release and Tag
+          if: github.event_name != 'pull_request' && steps.release.outputs.is_release == 'true'
+          env:
+            GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+            VERSION: ${{ steps.release.outputs.version }}
+          run: |
+            # GitHub CLI bawaan untuk bikin Release & Tag
+            # --generate-notes akan otomatis merangkum judul PR yang di-merge
+            gh release create "v$VERSION" \
+              --title "v$VERSION" \
+              --generate-notes \
+              --latest
