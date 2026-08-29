@@ -1,6 +1,6 @@
 {
   "name": "fuzzies-node",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Fast fuzzy search matching.",
   "main": "index.js",
   "repository": {
@@ -39,8 +39,17 @@
     "access": "public"
   },
   "supportedArchitectures": {
-    "cpu": ["current", "arm64", "x64", "arm"],
-    "libc": ["current", "musl", "gnu"]
+    "cpu": [
+      "current",
+      "arm64",
+      "x64",
+      "arm"
+    ],
+    "libc": [
+      "current",
+      "musl",
+      "gnu"
+    ]
   },
   "scripts": {
     "artifacts": "napi artifacts",
