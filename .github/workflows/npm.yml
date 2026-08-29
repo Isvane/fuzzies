@@ -305,4 +305,4 @@ jobs:
               --title "Node v$VERSION" \
               --generate-notes \
               --latest \
-              bindings/node/artifacts/*.node
+              artifacts/*/*.node
