@@ -282,7 +282,6 @@ jobs:
 
         - name: Publish to NPM
           env:
-            GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
             NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
           run: |
             npm config set provenance true
@@ -305,4 +304,5 @@ jobs:
             gh release create "node-v$VERSION" \
               --title "Node v$VERSION" \
               --generate-notes \
-              --latest
+              --latest \
+              bindings/node/artifacts/*.node
