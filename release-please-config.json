@@ -1,0 +1,8 @@
+{
+  "packages": {
+    "bindings/node": {
+      "release-type": "node",
+      "package-name": "fuzzies-node"
+    }
+  }
+}
