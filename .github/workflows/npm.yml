@@ -233,7 +233,7 @@ jobs:
         with:
           image: ${{ steps.docker.outputs.IMAGE }}
           name: test-bindings-${{ matrix.target }}
-          options: '-v ${{ github.workspace }}:${{ github.workspace }} -w ${{ github.workspace }} --platform ${{ steps.docker.outputs.PLATFORM }}'
+          options: '-v ${{ github.workspace }}:${{ github.workspace }} -w ${{ github.workspace }}/bindings/node --platform ${{ steps.docker.outputs.PLATFORM }}'
           args: npm run test
   publish:
     name: Publish
