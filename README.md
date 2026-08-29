@@ -1,22 +1,32 @@
 # Fuzzies
 
-**Fuzzies** is a fast fuzzy string matching crate built on [fst](https://github.com/BurntSushi/fst) and [levenshtein-automata](https://github.com/tantivy-search/levenshtein-automata)
+**Fuzzies** is a fast fuzzy string matching crate built on [fst](https://github.com/BurntSushi/fst) and [levenshtein-automata](https://github.com/tantivy-search/levenshtein-automata).
 
 [![Crates.io](https://img.shields.io/crates/v/fuzzies.svg)](https://crates.io/crates/fuzzies)
+[![NPM Version](https://img.shields.io/npm/v/fuzzies-node.svg)](https://www.npmjs.com/package/fuzzies-node)
 [![Docs.rs](https://docs.rs/fuzzies/badge.svg)](https://docs.rs/fuzzies)
 [![Crates.io](https://img.shields.io/crates/l/fuzzies)](https://github.com/Isvane/fuzzies/blob/main/LICENSE)
 
-More information about this crate can be found in the [crate documentation](https://docs.rs/fuzzies)
+More information about this crate can be found in the [crate documentation](https://docs.rs/fuzzies). 
 
 ---
 
 ## Installation
 
+Rust:
 ```bash
 cargo add fuzzies
 ```
 
+Node:
+```bash
+npm install fuzzies-node
+# or bun add / yarn add
+```
+
 ---
+
+_See the [Node.js README](bindings/node/README.md) for usage details and Node-specific APIs._
 
 ## Example
 
