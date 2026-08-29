@@ -270,14 +270,14 @@ jobs:
             COMMIT_MSG=$(git log -1 --pretty=%s)
             echo "Commit message: $COMMIT_MSG"
 
-            if echo "$COMMIT_MSG" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+( \(#[0-9]+\))?$'; then
-              VERSION=$(echo "$COMMIT_MSG" | grep -Eo '^[0-9]+\.[0-9]+\.[0-9]+')
+            if echo "$COMMIT_MSG" | grep -Eq '^node: [0-9]+\.[0-9]+\.[0-9]+( \(#[0-9]+\))?$'; then
+              VERSION=$(echo "$COMMIT_MSG" | grep -Eo '[0-9]+\.[0-9]+\.[0-9]+')
               echo "version=$VERSION" >> $GITHUB_OUTPUT
               echo "is_release=true" >> $GITHUB_OUTPUT
-              echo "Detected release version: $VERSION"
+              echo "Detected Node release version: $VERSION"
             else
               echo "is_release=false" >> $GITHUB_OUTPUT
-              echo "Not a release commit."
+              echo "Not a Node release commit."
             fi
 
         - name: Publish to NPM
@@ -302,9 +302,7 @@ jobs:
             GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
             VERSION: ${{ steps.release.outputs.version }}
           run: |
-            # GitHub CLI bawaan untuk bikin Release & Tag
-            # --generate-notes akan otomatis merangkum judul PR yang di-merge
-            gh release create "v$VERSION" \
-              --title "v$VERSION" \
+            gh release create "node-v$VERSION" \
+              --title "Node v$VERSION" \
               --generate-notes \
               --latest
