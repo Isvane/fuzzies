@@ -67,6 +67,11 @@ impl Dictionary {
     self.inner.contains(key.as_bytes())
   }
 
+  #[napi]
+  pub fn is_empty(&self) -> bool {
+    self.inner.is_empty()
+  }
+
   /// Returns the single top match for a query if it exists.
   #[napi]
   pub fn suggest(&self, query: String) -> Result<Option<SearchResult>> {
