@@ -1,0 +1,23 @@
+[package]
+edition = "2021"
+name = "fuzzies_node"
+version = "0.1.0"
+publish = false
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+napi-derive = "3.0.0"
+fuzzies = { path = "../../" }
+
+[dependencies.napi]
+version = "3.0.0"
+features = ["napi8", "tokio_rt", "async"]
+
+[build-dependencies]
+napi-build = "2"
+
+[profile.release]
+lto = true
+strip = "symbols"
