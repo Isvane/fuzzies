@@ -9,12 +9,13 @@
   },
   "license": "MIT",
   "keywords": [
-    "napi-rs",
-    "NAPI",
-    "N-API",
-    "Rust",
-    "node-addon",
-    "node-addon-api"
+    "fst",
+    "levenshtein-automata",
+    "fuzzy-search",
+    "search",
+    "text-processing",
+    "rust",
+    "NAPI"
   ],
   "files": [
     "index.d.ts",
