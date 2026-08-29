@@ -1,9 +1,9 @@
-//! REPL Example
+//! Interactive REPL demonstrating fuzzy search.
 //!
-//! Run with:
-//! ```sh
-//! cargo run --release --example repl
-//! ```
+//! Automatically builds an FST dictionary on first run
+//! and lets you query terms with up to 2 edits/transpositions in real-time.
+//!
+//! Run with: `cargo run --example repl --release`
 
 use fuzzies::{Dictionary, DictionaryError};
 use std::fs::File;
@@ -12,17 +12,15 @@ use std::path::Path;
 use std::time::Instant;
 
 fn main() -> Result<(), DictionaryError> {
-    let fst_path = "tech_dictionary.fst";
+    let fst_path = "dict.fst";
 
     setup_dictionary(fst_path)?;
 
     println!("Loading dictionary into memory...");
     let dict = Dictionary::open(fst_path)?;
+    println!("Dictionary loaded successfully!");
 
-    println!("=======================================================");
-    println!(" Fuzzies Interactive Search REPL");
-    println!("=======================================================");
-    println!("Type a word to find fuzzy matches. (Type 'quit' to stop)\n");
+    println!("\nType a word to find fuzzy matches. (Type 'quit' to stop)\n");
 
     let stdin = io::stdin();
     let mut stdout = io::stdout();
@@ -59,11 +57,7 @@ fn main() -> Result<(), DictionaryError> {
         } else {
             println!("Found {} matches in {duration:?}", results.len());
             for (i, result) in results.into_iter().enumerate() {
-                let exact_marker = if result.is_exact() {
-                    " ✨ [EXACT]"
-                } else {
-                    ""
-                };
+                let exact_marker = if result.is_exact() { " [EXACT]" } else { "" };
                 println!("    {}. {}{}", i + 1, result.key, exact_marker);
             }
         }
@@ -78,76 +72,26 @@ fn setup_dictionary(fst_path: &str) -> Result<(), DictionaryError> {
         return Ok(());
     }
 
-    println!("First run detected. Generating a sample tech dictionary...");
-    let txt_path = "tech_dictionary.txt";
+    println!("First run detected. Generating a sample dictionary...");
+    let txt_path = "dict.txt";
     let mut file = File::create(txt_path)?;
 
     let words = [
-        "algorithm",
-        "application",
-        "authentication",
-        "authorization",
-        "bandwidth",
-        "binary",
-        "boolean",
-        "browser",
-        "cache",
-        "compiler",
-        "connection",
-        "cryptography",
-        "database",
-        "debugger",
-        "deployment",
-        "dictionary",
-        "encryption",
-        "endpoint",
-        "environment",
-        "execution",
-        "framework",
-        "function",
-        "gateway",
-        "gigabyte",
-        "hardware",
-        "heuristic",
-        "hostname",
-        "hypertext",
-        "iteration",
-        "interface",
-        "javascript",
-        "json",
-        "kernel",
-        "keyboard",
-        "latency",
-        "linux",
-        "macintosh",
-        "macro",
-        "memory",
-        "microservice",
-        "network",
-        "node",
-        "object",
-        "operating",
-        "packet",
-        "parameter",
-        "password",
-        "performance",
-        "query",
-        "queue",
-        "recursion",
-        "repository",
-        "router",
-        "server",
-        "software",
-        "syntax",
-        "system",
-        "terminal",
-        "thread",
-        "token",
-        "topology",
-        "transaction",
-        "ubuntu",
-        "unicode",
-        "variable",
+        "apple",
+        "banana",
+        "mango",
+        "rust",
+        "computer",
+        "book",
+        "bar",
+        "bear",
+        "bool",
+        "foo",
+        "bar",
+        "love",
+        "programming",
+        "programmer",
+        "profanity",
     ];
 
     for word in words {
