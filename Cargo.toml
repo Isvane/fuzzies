@@ -11,6 +11,12 @@ exclude = ["examples/*"]
 readme = "README.md"
 keywords = ["fst", "levenshtein", "search"]
 
+[workspace]
+members = [
+    ".",
+    "bindings/node"
+]
+
 [dependencies]
 fst = "0.4.7"
 levenshtein_automata = "0.2.1"
