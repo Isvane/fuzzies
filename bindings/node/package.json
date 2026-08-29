@@ -50,7 +50,7 @@
     "format:oxfmt": "oxfmt",
     "format:rs": "cargo fmt",
     "lint": "oxlint .",
-    "prepublishOnly": "napi prepublish -t npm",
+    "prepublishOnly": "napi prepublish -t npm --no-gh-release",
     "test": "echo \"Tests skipped for now\" && exit 0",
     "preversion": "napi build --platform && git add .",
     "version": "napi version",
