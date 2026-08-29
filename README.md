@@ -1,6 +1,6 @@
-# Fuzzies
+# Fuzzies 🧸
 
-**Fuzzies** is a fast fuzzy string matching crate built on [fst](https://github.com/BurntSushi/fst) and [levenshtein-automata](https://github.com/tantivy-search/levenshtein-automata).
+**Fuzzies** is a memory-mapped FST spellchecker and fuzzy dictionary built on [fst](https://github.com/BurntSushi/fst) and [levenshtein-automata](https://github.com/tantivy-search/levenshtein-automata).
 
 [![Crates.io](https://img.shields.io/crates/v/fuzzies.svg)](https://crates.io/crates/fuzzies)
 [![NPM Version](https://img.shields.io/npm/v/fuzzies-node.svg)](https://www.npmjs.com/package/fuzzies-node)
@@ -13,20 +13,13 @@ More information about this crate can be found in the [crate documentation](http
 
 ## Installation
 
-Rust:
 ```bash
 cargo add fuzzies
 ```
 
-Node:
-```bash
-npm install fuzzies-node
-# or bun add / yarn add
-```
+_See the [Node.js README](bindings/node/README.md) for Node-specific APIs and its usage details._
 
 ---
-
-_See the [Node.js README](bindings/node/README.md) for usage details and Node-specific APIs._
 
 ## Example
 
@@ -95,6 +88,7 @@ let words = vec!["apple", "banana", "cherry"];
 let dict = Dictionary::from_iterator(words)?;
 ```
 
+_See more [examples](examples/)_
 ---
 
 ## 🎈 Performance
