@@ -1,206 +1,281 @@
-use criterion::{BatchSize, BenchmarkId, Criterion, criterion_group, criterion_main};
-use fuzzies::{Dictionary, SearchResult};
-use std::fs;
+use criterion::{BatchSize, BenchmarkId, Criterion, Throughput, criterion_group, criterion_main};
+
 use std::hint::black_box;
 use std::io::Write;
-use std::time::Duration;
 use tempfile::NamedTempFile;
 
-fn generate_words() -> Vec<String> {
-    let mut words = vec![
-        "apple".to_string(),
-        "banana".to_string(),
-        "cherry".to_string(),
-        "date".to_string(),
-        "fig".to_string(),
-        "grape".to_string(),
-    ];
-    for i in 0..1000 {
-        words.push(format!("word{:04}", i));
+use fuzzies::Dictionary;
+
+fn generate_dictionary_keys(count: usize) -> Vec<String> {
+    let mut keys = Vec::with_capacity(count);
+    for i in 0..count {
+        let word = format!("word_{:08x}_{:x}", i, i * 37);
+        keys.push(word);
     }
-    words
+    keys.sort();
+    keys.dedup();
+    keys
 }
 
-fn setup_bench_dictionary() -> (Dictionary, NamedTempFile) {
-    use fst::SetBuilder;
-
-    let mut temp_file = NamedTempFile::new().unwrap();
-    let mut words = generate_words();
-    words.sort_unstable();
-
-    let mut build = SetBuilder::new(&mut temp_file).unwrap();
-    for word in words {
-        build.insert(word).unwrap();
+fn generate_query_batch(keys: &[String], count: usize, edit_type: EditType) -> Vec<String> {
+    let mut queries = Vec::with_capacity(count);
+    for (i, key) in keys.iter().take(count).enumerate() {
+        let mut q = key.clone();
+        match edit_type {
+            EditType::Exact => {}
+            EditType::SingleDeletion => {
+                if q.len() > 1 {
+                    q.pop();
+                }
+            }
+            EditType::SingleSubstitution => {
+                if !q.is_empty() {
+                    let last_idx = q.len() - 1;
+                    q.replace_range(last_idx.., "z");
+                }
+            }
+            EditType::Transposition => {
+                if q.len() >= 2 {
+                    let mut bytes = q.into_bytes();
+                    bytes.swap(0, 1);
+                    q = String::from_utf8(bytes).unwrap();
+                }
+            }
+            EditType::Miss => {
+                q = format!("nonexistent_prefix_{:x}", i);
+            }
+        }
+        queries.push(q);
     }
-    build.finish().unwrap();
-
-    let dict = Dictionary::open(temp_file.path()).unwrap();
-    (dict, temp_file)
+    queries
 }
 
-fn bench_build_and_load(c: &mut Criterion) {
-    let mut group = c.benchmark_group("1. Prep, Build, and Load");
-    let unsorted_words = generate_words(); // Purposely unsorted
+#[derive(Clone, Copy)]
+enum EditType {
+    Exact,
+    SingleDeletion,
+    SingleSubstitution,
+    Transposition,
+    Miss,
+}
 
-    group.bench_function("Dictionary::sort (in-place)", |b| {
+fn bench_construction(c: &mut Criterion) {
+    let mut group = c.benchmark_group("Dictionary Construction");
+
+    for &size in &[1_000, 10_000, 50_000] {
+        let keys = generate_dictionary_keys(size);
+        group.throughput(Throughput::Elements(keys.len() as u64));
+
+        group.bench_with_input(BenchmarkId::new("from_iterator", size), &keys, |b, keys| {
+            b.iter_batched(
+                || keys.clone(),
+                |k| black_box(Dictionary::from_iterator(black_box(k)).unwrap()),
+                BatchSize::SmallInput,
+            );
+        });
+    }
+
+    let keys = generate_dictionary_keys(10_000);
+    group.throughput(Throughput::Elements(keys.len() as u64));
+    group.bench_function("build_from_file", |b| {
         b.iter_batched(
             || {
-                let mut raw_file = NamedTempFile::new().unwrap();
-                for word in &unsorted_words {
-                    writeln!(raw_file, "{}", word).unwrap();
+                let input_file = NamedTempFile::new().unwrap();
+                let output_file = NamedTempFile::new().unwrap();
+                {
+                    let mut writer = std::io::BufWriter::new(&input_file);
+                    for key in &keys {
+                        writeln!(writer, "{}", key).unwrap();
+                    }
                 }
-                raw_file
+                (input_file, output_file)
             },
-            |raw_file| {
-                Dictionary::sort(raw_file.path()).unwrap();
+            |(input, output)| {
+                black_box(
+                    Dictionary::build(black_box(input.path()), black_box(output.path())).unwrap(),
+                )
             },
-            BatchSize::SmallInput,
+            BatchSize::PerIteration,
         );
     });
 
-    let sorted_file = {
-        let mut f = NamedTempFile::new().unwrap();
-        let mut w = unsorted_words.clone();
-        w.sort_unstable();
-        for word in w {
-            writeln!(f, "{}", word).unwrap();
-        }
-        f
-    };
+    group.finish();
+}
 
-    group.bench_function("Dictionary::build", |b| {
-        b.iter_batched(
-            || NamedTempFile::new().unwrap(),
-            |output_file| {
-                Dictionary::build(sorted_file.path(), output_file.path()).unwrap();
-            },
-            BatchSize::SmallInput,
-        );
+fn bench_exact_contains(c: &mut Criterion) {
+    let mut group = c.benchmark_group("Exact Lookup (contains)");
+    let keys = generate_dictionary_keys(50_000);
+    let dict = Dictionary::from_iterator(keys.clone()).unwrap();
+
+    let hit_key = keys[keys.len() / 2].clone();
+    let miss_key = "nonexistent_key_xyz_99999".to_string();
+
+    group.throughput(Throughput::Elements(1));
+
+    group.bench_function("hit", |b| {
+        b.iter(|| black_box(dict.contains(black_box(&hit_key))));
     });
 
-    let fst_file = NamedTempFile::new().unwrap();
-    Dictionary::build(sorted_file.path(), fst_file.path()).unwrap();
-
-    group.bench_function("Dictionary::open (Mmap)", |b| {
-        b.iter(|| {
-            let _dict = black_box(Dictionary::open(fst_file.path()).unwrap());
-        });
-    });
-
-    let fst_bytes: &'static [u8] = Box::leak(fs::read(fst_file.path()).unwrap().into_boxed_slice());
-    group.bench_function("Dictionary::from_embedded", |b| {
-        b.iter(|| {
-            let _dict = black_box(Dictionary::from_embedded(black_box(fst_bytes)).unwrap());
-        });
+    group.bench_function("miss", |b| {
+        b.iter(|| black_box(dict.contains(black_box(&miss_key))));
     });
 
     group.finish();
 }
 
-fn bench_metadata(c: &mut Criterion) {
-    let (dict, _temp) = setup_bench_dictionary();
-    let mut group = c.benchmark_group("2. Metadata & Membership");
+fn bench_single_search(c: &mut Criterion) {
+    let mut group = c.benchmark_group("Single Search");
+    let keys = generate_dictionary_keys(50_000);
+    let dict = Dictionary::from_iterator(keys.clone()).unwrap();
 
-    group.bench_function("len", |b| b.iter(|| black_box(dict.len())));
-    group.bench_function("is_empty", |b| b.iter(|| black_box(dict.is_empty())));
+    let target_query = &keys[keys.len() / 2];
 
-    group.bench_function("contains (Hit)", |b| {
-        b.iter(|| black_box(dict.contains(black_box("apple"))))
-    });
-    group.bench_function("contains (Miss)", |b| {
-        b.iter(|| black_box(dict.contains(black_box("pineapple"))))
-    });
-
-    group.finish();
-}
-
-fn bench_searches(c: &mut Criterion) {
-    let (dict, _temp) = setup_bench_dictionary();
-    let mut group = c.benchmark_group("3. Search Queries");
-
-    group.bench_function("Exact (distance=0)", |b| {
-        b.iter(|| {
-            let _res: Vec<SearchResult> = black_box(
-                dict.search(black_box("apple"))
-                    .distance(0)
-                    .execute()
-                    .unwrap(),
-            );
-        });
-    });
-
-    group.bench_function("Fuzzy + Transposition (distance=1)", |b| {
-        b.iter(|| {
-            let _res: Vec<SearchResult> = black_box(
-                dict.search(black_box("aple"))
-                    .distance(1)
-                    .transposition(true)
-                    .execute()
-                    .unwrap(),
-            );
-        });
-    });
-
-    group.bench_function("Prefix Search", |b| {
-        b.iter(|| {
-            let _res: Vec<SearchResult> = black_box(
-                dict.search(black_box("app"))
-                    .prefix(true)
-                    .limit(5)
-                    .execute()
-                    .unwrap(),
-            );
-        });
-    });
-
-    group.bench_function("Range Bounded Search (ge='b', le='c')", |b| {
-        b.iter(|| {
-            let _res: Vec<SearchResult> = black_box(
-                dict.search(black_box("b"))
-                    .prefix(true)
-                    .ge(black_box("b"))
-                    .le(black_box("c"))
-                    .limit(5)
-                    .execute()
-                    .unwrap(),
-            );
-        });
-    });
-
-    group.finish();
-}
-
-fn bench_batch(c: &mut Criterion) {
-    let (dict, _temp) = setup_bench_dictionary();
-    let mut group = c.benchmark_group("4. Batch Search (Rayon)");
-
-    let batch_sizes = vec![100, 500, 1000];
-
-    for size in batch_sizes {
-        let batch_queries: Vec<&str> = (0..size)
-            .map(|i| if i % 2 == 0 { "word0050" } else { "baxana" })
-            .collect();
-
+    for distance in [1, 2] {
         group.bench_with_input(
-            BenchmarkId::new("Parallel Execution", size),
-            &batch_queries,
-            |b, queries| {
+            BenchmarkId::new("distance_scaling", distance),
+            &distance,
+            |b, &dist| {
                 b.iter(|| {
-                    let _res = black_box(dict.batch_search(black_box(queries)).execute());
+                    black_box(
+                        dict.search(black_box(target_query))
+                            .distance(dist)
+                            .execute()
+                            .unwrap(),
+                    )
                 });
             },
         );
     }
+
+    for transposition in [false, true] {
+        group.bench_with_input(
+            BenchmarkId::new("transposition", transposition),
+            &transposition,
+            |b, &trans| {
+                b.iter(|| {
+                    black_box(
+                        dict.search(black_box(target_query))
+                            .distance(1)
+                            .transposition(trans)
+                            .execute()
+                            .unwrap(),
+                    )
+                });
+            },
+        );
+    }
+
+    for prefix in [false, true] {
+        let prefix_query = &target_query[..target_query.len() / 2];
+        group.bench_with_input(
+            BenchmarkId::new("prefix_matching", prefix),
+            &prefix,
+            |b, &pref| {
+                b.iter(|| {
+                    black_box(
+                        dict.search(black_box(prefix_query))
+                            .distance(1)
+                            .prefix(pref)
+                            .execute()
+                            .unwrap(),
+                    )
+                });
+            },
+        );
+    }
+
+    for limit in [1, 5, 50] {
+        group.bench_with_input(BenchmarkId::new("limit_size", limit), &limit, |b, &lim| {
+            b.iter(|| {
+                black_box(
+                    dict.search(black_box(target_query))
+                        .limit(lim)
+                        .distance(1)
+                        .execute()
+                        .unwrap(),
+                )
+            });
+        });
+    }
+
     group.finish();
 }
 
-fn configured_criterion() -> Criterion {
-    Criterion::default().measurement_time(Duration::from_secs(5))
+fn bench_range_search(c: &mut Criterion) {
+    let mut group = c.benchmark_group("Range Bounded Search");
+    let keys = generate_dictionary_keys(50_000);
+    let dict = Dictionary::from_iterator(keys.clone()).unwrap();
+
+    let lower_bound = &keys[10_000];
+    let upper_bound = &keys[15_000];
+    let query = &keys[12_000];
+
+    group.bench_function("ge_and_le_bounds", |b| {
+        b.iter(|| {
+            black_box(
+                dict.search(black_box(query))
+                    .ge(black_box(lower_bound))
+                    .le(black_box(upper_bound))
+                    .distance(1)
+                    .execute()
+                    .unwrap(),
+            )
+        });
+    });
+
+    group.finish();
+}
+
+fn bench_batch_search(c: &mut Criterion) {
+    let mut group = c.benchmark_group("Rayon Parallel Batch Search");
+    let keys = generate_dictionary_keys(50_000);
+    let dict = Dictionary::from_iterator(keys.clone()).unwrap();
+
+    let edit_types = [
+        ("exact", EditType::Exact),
+        ("deletion", EditType::SingleDeletion),
+        ("substitution", EditType::SingleSubstitution),
+        ("transposition", EditType::Transposition),
+        ("miss", EditType::Miss),
+    ];
+
+    for (edit_name, edit_type) in edit_types {
+        for &batch_size in &[10, 100, 1_000] {
+            let raw_queries = generate_query_batch(&keys, batch_size, edit_type);
+            let query_refs: Vec<&str> = raw_queries.iter().map(|s| s.as_str()).collect();
+
+            group.throughput(Throughput::Elements(batch_size as u64));
+
+            group.bench_with_input(
+                BenchmarkId::new(format!("{edit_name}/batch"), batch_size),
+                &query_refs,
+                |b, queries| {
+                    b.iter(|| {
+                        black_box(
+                            dict.batch_search(black_box(queries))
+                                .distance(1)
+                                .limit(5)
+                                .execute(),
+                        )
+                    });
+                },
+            );
+        }
+    }
+
+    group.finish();
 }
 
 criterion_group!(
     name = benches;
-    config = configured_criterion();
-    targets = bench_build_and_load, bench_metadata, bench_searches, bench_batch
+    config = Criterion::default()
+        .with_plots();
+    targets =
+        bench_construction,
+        bench_exact_contains,
+        bench_single_search,
+        bench_range_search,
+        bench_batch_search
 );
+
 criterion_main!(benches);

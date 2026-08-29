@@ -88,37 +88,18 @@ let words = vec!["apple", "banana", "cherry"];
 let dict = Dictionary::from_iterator(words)?;
 ```
 
-_See more [examples](examples/)_
+See [examples](examples/) for more.
+
 ---
 
 ## 🎈 Performance
 
-The following benchmarks were gathered using Criterion on an **Intel Core i5-10300H** (4 cores / 8 threads). You can re-run these on your hardware with `cargo bench`.
+- **Instant Exact Matches**: Finding a word takes about `130ns`. If a word isn't in the dictionary, it figures that out and rejects it in under `10ns`.
+- **Fast Typo Correction**: Searching for a word with a 1-character typo through 50,000 words takes about `75µs`.
+- **Multithreading**: Throwing 1,000 fuzzy searches at it in parallel (via Rayon) finishes in just `~5ms`. 
+- **Zero Loading Screen**: Opening a saved dictionary is instant, no matter how huge the file is, because it just maps the file directly to memory.
 
-> [!NOTE] 
-> Running `cargo bench` on the published crate executes against a small, dynamically generated dataset. The 106,000-word benchmarks shown below were gathered independently using a local dictionary.
-
-### Setup & Initialization
-
-| Operation | 1,000 Entries | 106,000 Entries |
-|-----------|------:|------:|
-| `Dictionary::sort` | 36.87 µs | — |
-| `Dictionary::build` | 130.97 µs | — |
-| `Dictionary::open` | 2.78 µs | 6.96 µs |
-| `Dictionary::from_embedded`| 11.75 ns | 11.77 ns |
-| `Dictionary::len` / `is_empty` | ~0.45 ns | ~0.45 ns |
-
-### Search & Queries
-
-| Operation | 1,000 Entries | 106,000 Entries | Scaling Factor |
-|-----------|---------------------:|----------------------:|---------------:|
-| contains (Hit) | 34.50 ns | 63.94 ns | ~1.9x |
-| contains (Miss) | 11.13 ns | 97.84 ns | ~8.8x |
-| Exact Search (dist = 0) | 2.01 µs | 4.26 µs | ~2.1x |
-| Fuzzy Search (dist = 1) | 8.31 µs | 64.55 µs | ~7.8x |
-| Prefix Search | 5.43 µs | 125.95 µs | Result-size bound |
-| Range Search (`'b'..='c'`) | 4.19 µs | 637.90 µs | Result-size bound |
-| Batch (1,000 queries) | 4.08 ms (4.0 µs/q) | 14.88 ms (14.8 µs/q) | ~3.6x |
+Want the hard numbers? Check out the [Benchmarks](BENCHMARK.md).
 
 ---
 
