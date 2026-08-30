@@ -1,4 +1,4 @@
-# Fuzzies 🧸
+# Fuzzies
 
 **Fuzzies** is a memory-mapped FST spellchecker and fuzzy dictionary built on [fst](https://github.com/BurntSushi/fst) and [levenshtein-automata](https://github.com/tantivy-search/levenshtein-automata).
 
@@ -88,7 +88,7 @@ let words = vec!["apple", "banana", "cherry"];
 let dict = Dictionary::from_iterator(words)?;
 ```
 
-See [examples](examples/) for more.
+_See [examples](examples/) for more._
 
 ---
 

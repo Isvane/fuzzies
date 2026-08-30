@@ -1,6 +1,4 @@
-# Benchmark Data
-
-These were measured using [Criterion.rs](https://github.com/bheisler/criterion.rs) to make sure we're testing the actual search speed, completely separated from memory allocation overhead or test setup.
+These were measured using [Criterion.rs](https://github.com/bheisler/criterion.rs).
 
 ## TL;DR
 
@@ -49,7 +47,7 @@ How fast the engine can find close matches. The wider you set the search net, th
 | Allow swapped letters | `77.9 µs` | E.g., typing "teh" instead of "the". Barely affects speed. |
 | Prefix Search * | `10.3 ms` | *See note below. |
 
-> **\* Note on the 10ms Prefix Search**: In this specific test, the search prefix was `"word_000"`. Since every single word in our 50,000-word test dataset started with that, the engine had to literally find, calculate distances for, and sort all **50,000 matches**. Processing the entire dictionary in 10ms means it handles an individual match in about 200 nanoseconds. 
+> **Note on the 10ms Prefix Search**: In this specific test, the search prefix was `"word_000"`. Since every single word in our 50,000-word test dataset started with that, the engine had to literally find, calculate distances for, and sort all **50,000 matches**. Processing the entire dictionary in 10ms means it handles an individual match in about 200 nanoseconds. 
 
 ---
 
