@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.2](https://github.com/Isvane/fuzzies/compare/fuzzies-v0.6.1...fuzzies-v0.6.2) - 2026-08-30
+
+### Documentation
+
+- update README description
+- link Node README.md
+
+### Other
+
+- 1.0.0 ([#71](https://github.com/Isvane/fuzzies/pull/71))
+
 ## [0.6.1](https://github.com/Isvane/fuzzies/compare/v0.6.0...v0.6.1) - 2026-08-26
 
 ### Added
