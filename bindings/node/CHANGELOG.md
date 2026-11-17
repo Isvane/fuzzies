@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.1.1](https://github.com/Isvane/fuzzies/compare/fuzzies-node-v1.1.0...fuzzies-node-v1.1.1) (2026-11-17)
+
+
+### Bug Fixes
+
+* sync napi binding version checks to 1.1.0 ([c37aa92](https://github.com/Isvane/fuzzies/commit/c37aa925c03b0df6c7c296009e28dbdca67f63b1))
+
 ## [1.1.0](https://github.com/Isvane/fuzzies/compare/fuzzies-node-v1.0.0...fuzzies-node-v1.1.0) (2026-08-29)
 
 
