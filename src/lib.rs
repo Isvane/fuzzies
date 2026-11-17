@@ -280,6 +280,7 @@ impl Default for SearchOptions {
 }
 
 /// Query builder for configuring single and batch fuzzy searches.
+#[must_use = "search builders do nothing until `.execute()` is called"]
 pub struct SearchBuilder<'a, Q = String> {
     dictionary: &'a Dictionary,
     query: Q,
