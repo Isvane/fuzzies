@@ -1,6 +1,4 @@
-# Fuzzies
-
-**Fuzzies** is a memory-mapped FST spellchecker and fuzzy dictionary built on [fst](https://github.com/BurntSushi/fst) and [levenshtein-automata](https://github.com/tantivy-search/levenshtein-automata).
+# fuzzies
 
 [![Crates.io](https://img.shields.io/crates/v/fuzzies.svg)](https://crates.io/crates/fuzzies)
 [![NPM Version](https://img.shields.io/npm/v/fuzzies-node.svg)](https://www.npmjs.com/package/fuzzies-node)
@@ -94,12 +92,17 @@ _See [examples](examples/) for more._
 
 ## 🎈 Performance
 
-- **Instant Exact Matches**: Finding a word takes about `130ns`. If a word isn't in the dictionary, it figures that out and rejects it in under `10ns`.
-- **Fast Typo Correction**: Searching for a word with a 1-character typo through 50,000 words takes about `75µs`.
-- **Multithreading**: Throwing 1,000 fuzzy searches at it in parallel (via Rayon) finishes in just `~5ms`. 
-- **Zero Loading Screen**: Opening a saved dictionary is instant, no matter how huge the file is, because it just maps the file directly to memory.
+Single-thread benchmarks pinned to `CPU 3` (ASLR disabled, real-time priority). Batch benchmarks run across all available CPU cores.
 
-Want the hard numbers? Check out the [Benchmarks](BENCHMARK.md).
+| Operation | Time | Throughput |
+| --- | --- | --- |
+| `Dictionary::open (.fst)` | 10.55 µs | - |
+| `Dictionary::from_iterator (50,000 words)` | 18.94 ms | 2.64M words/s |
+| `Dictionary::contains (exact hit)` | 160.4 ns | 6.24M ops/s |
+| `Dictionary::search (1 typo)` | 104.5 µs | - |
+| `Dictionary::batch_search (1,000 queries, 1 typo)` | 22.65 ms | 44.15K queries/s |
+
+See [Benchmarks](BENCHMARK.md) for more.
 
 ---
 

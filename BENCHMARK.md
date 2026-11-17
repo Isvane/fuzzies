@@ -1,64 +1,79 @@
-These were measured using [Criterion.rs](https://github.com/bheisler/criterion.rs).
+Measured using [Criterion.rs](https://github.com/bheisler/criterion.rs).
 
 ## TL;DR
 
-1. **Instant rejections:** If a word isn't in the dictionary, fuzzies doesn't waste time checking the rest of the list. It fails fast.
-2. **Size doesn't matter:** Exact matches are fast because it only takes time proportional to the word you typed. The dictionary could have 50 million words and exact lookups would still take ~130ns.
-3. **Scaling:** If you're building something like a spellchecker that processes whole documents, batching the queries across CPU threads gets the time down to under 20 microseconds per word.
-
---- 
-
-### Setup
-- **Dictionary Size**: 50,000 unique words.
-- **Words**: 17-byte strings (e.g., `word_0000a1b2_90b8`).
-- **Hardware**: *I5-10300H Laptop CPU*
+1. **Instant loading:** Opening a pre-built `.fst` dictionary takes `10.55 µs`. Building one from 50,000 raw words takes `18.94 ms` (about 2.64 million words per second).
+2. **Fast exact lookups:** Checking if a word exists takes `160 ns` for a hit and `140 ns` for a miss. Lookup speed depends on word length, not dictionary size.
+3. **Predictable fuzzy search:** Finding words within 1 typo takes about `100 µs` to `105 µs`. Adding alphabetical bounds drops that time to `27.5 µs`.
+4. **Multi-core batch scaling:** Running batch searches across all CPU cores drops per-query time to roughly `18 µs` to `23 µs`, reaching up to `54.9K` queries per second.
 
 ---
 
-## Building the Dictionary
-Before we can search, the engine has to sort the words, remove duplicates, and build the search graph. It processes about 1.8 million words per second.
+### Setup
 
-| Input Size | Time to Build |
-| ---: | ---: |
-| 1,000 words | `557 µs` |
-| 10,000 words | `5.68 ms` |
-| 50,000 words | `27.19 ms` |
+- **Dataset**: Real English words from `assets/words.fst` (50,000 words used for construction and query sampling).
+- **Hardware**: Intel i5-10300H laptop CPU.
+- **Environment**: Single-thread benchmarks pinned to `CPU 3` (ASLR disabled, real-time priority). Batch benchmarks run across all available CPU cores.
+
+---
+
+## Loading and Building the Dictionary
+
+You can load a compiled FST file directly from disk, or build a dictionary in memory from an iterator of strings. Building from raw strings sorts the words, removes duplicates, and constructs the search graph.
+
+| Method | Input | Time | Throughput |
+| :--- | :--- | ---: | ---: |
+| `Dictionary::open` | Pre-built `.fst` file | `10.55 µs` | N/A (zero-copy load) |
+| `Dictionary::from_iterator` | 50,000 words | `18.94 ms` | 2.64M words/s |
 
 ---
 
 ## Exact Lookups (`contains`)
-Because of how the data structure works, search time depends on the *length of the word* you're looking for, not how many words are in the dictionary. 
 
-| Query Type | Time | What's happening? |
-| :--- | ---: | :--- |
-| **Exact Hit** | `130 ns` | Successfully found a 17-character word. |
-| **Total Miss** | `6.7 ns` | The engine instantly stops searching the moment it sees a mismatched letter. |
+Exact lookup time depends on the length of the query word, not how many words are in the dictionary.
+
+| Query Type | Time | Throughput | Notes |
+| :--- | ---: | ---: | :--- |
+| **Exact Hit** | `160.4 ns` | 6.24M ops/s | Matches a known English word like `"algorithm"`. |
+| **Near Miss** | `140.4 ns` | 7.12M ops/s | Keeps a real word prefix and changes the ending (e.g., `"qx"`), stopping once the path breaks. |
 
 ---
 
-## Fuzzy Searching (Handling Typos)
-How fast the engine can find close matches. The wider you set the search net, the more paths it has to check.
+## Fuzzy Searching (Single Query)
 
-| Setup | Time | Notes |
+Fuzzy search finds dictionary words within a set edit distance. Wider tolerances and prefix matching explore more paths in the graph, which increases search time.
+
+| Test Case | Time | Notes |
 | :--- | ---: | :--- |
-| 1 Typo allowed | `75.2 µs` | Standard typo correction. |
-| 2 Typos allowed | `775.7 µs` | Takes longer because allowing 2 mistakes creates way more possible letter combinations. |
-| Search within bounds | `38.6 µs` | Grabbing a specific alphabetical range (like words between "a" and "c"). |
-| Allow swapped letters | `77.9 µs` | E.g., typing "teh" instead of "the". Barely affects speed. |
-| Prefix Search * | `10.3 ms` | *See note below. |
-
-> **Note on the 10ms Prefix Search**: In this specific test, the search prefix was `"word_000"`. Since every single word in our 50,000-word test dataset started with that, the engine had to literally find, calculate distances for, and sort all **50,000 matches**. Processing the entire dictionary in 10ms means it handles an individual match in about 200 nanoseconds. 
+| **1 typo allowed** | `104.5 µs` | Default single-edit fuzzy search. |
+| **2 typos allowed** | `819.6 µs` | Allowing 2 edits branches into many more candidate paths. |
+| **Swapped letters off** | `100.2 µs` | 1 typo allowed, adjacent letter swaps disabled. |
+| **Swapped letters on** | `102.9 µs` | Allows adjacent swaps (e.g., `"teh"` for `"the"`) with almost no speed penalty. |
+| **Prefix search off** | `96.6 µs` | Searches using the first half of a target word as a full word (1 typo). |
+| **Prefix search on** | `178.9 µs` | Matches all words starting with that half-word prefix (1 typo). |
+| **Result limit (1, 5, or 50)** | `99.3 to 99.9 µs` | Limiting returned results has almost no effect on search speed. |
+| **Alphabetical bounds** | `27.5 µs` | Restricting search between lower (`ge`) and upper (`le`) bounds cuts search time by ~73%. |
 
 ---
 
 ## Batch Searching (Rayon)
-If you need to check a massive list of words at once, the crate uses Rayon to split the work across your CPU cores. (Tested with max 1 typo allowed, returning up to 5 results per query).
 
-| Batch Size | Query Type | Total Time | Average Time Per Query |
-| ---: | :--- | ---: | ---: |
-| **10** | Exact | `194.3 µs` | ~19.4 µs |
-| **100** | Exact | `1.61 ms` | ~16.1 µs |
-| **1,000** | Exact | `17.48 ms` | ~17.4 µs |
-| **1,000** | 1 Missing Letter | `17.65 ms` | ~17.6 µs |
-| **1,000** | 1 Swapped Letter | `5.04 ms` | ~5.0 µs |
-| **1,000** | Complete Miss | `6.65 ms` | ~6.6 µs |
+`batch_search` splits query slices across all available CPU cores using Rayon. All tests below allow up to 1 typo and return up to 5 results per query.
+
+| Query Type | Batch Size | Total Time | Avg Per Query | Throughput |
+| :--- | ---: | ---: | ---: | ---: |
+| **Exact match** | 10 | `188.3 µs` | `18.8 µs` | 53.10K queries/s |
+| **Exact match** | 100 | `2.13 ms` | `21.3 µs` | 47.02K queries/s |
+| **Exact match** | 1,000 | `22.65 ms` | `22.7 µs` | 44.15K queries/s |
+| **1 missing letter** | 10 | `182.1 µs` | `18.2 µs` | 54.92K queries/s |
+| **1 missing letter** | 100 | `2.08 ms` | `20.8 µs` | 48.18K queries/s |
+| **1 missing letter** | 1,000 | `22.17 ms` | `22.2 µs` | 45.11K queries/s |
+| **1 replaced letter** | 10 | `186.4 µs` | `18.6 µs` | 53.66K queries/s |
+| **1 replaced letter** | 100 | `2.08 ms` | `20.8 µs` | 48.02K queries/s |
+| **1 replaced letter** | 1,000 | `22.39 ms` | `22.4 µs` | 44.67K queries/s |
+| **2 swapped letters** | 10 | `196.4 µs` | `19.6 µs` | 50.91K queries/s |
+| **2 swapped letters** | 100 | `2.11 ms` | `21.1 µs` | 47.33K queries/s |
+| **2 swapped letters** | 1,000 | `23.21 ms` | `23.2 µs` | 43.08K queries/s |
+| **Complete miss** | 10 | `185.5 µs` | `18.6 µs` | 53.91K queries/s |
+| **Complete miss** | 100 | `2.09 ms` | `20.9 µs` | 47.95K queries/s |
+| **Complete miss** | 1,000 | `22.34 ms` | `22.3 µs` | 44.77K queries/s |
