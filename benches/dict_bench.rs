@@ -1,48 +1,88 @@
 use criterion::{BatchSize, BenchmarkId, Criterion, Throughput, criterion_group, criterion_main};
-
+use fst::{IntoStreamer, Set, Streamer};
+use std::collections::HashSet;
 use std::hint::black_box;
-use std::io::Write;
-use tempfile::NamedTempFile;
 
 use fuzzies::Dictionary;
 
-fn generate_dictionary_keys(count: usize) -> Vec<String> {
-    let mut keys = Vec::with_capacity(count);
-    for i in 0..count {
-        let word = format!("word_{:08x}_{:x}", i, i * 37);
-        keys.push(word);
+const FST_PATH: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/assets/words.fst");
+
+fn load_dictionary() -> Dictionary {
+    Dictionary::open(FST_PATH).expect("failed to load assets/words.fst")
+}
+
+fn load_sample_keys(limit: usize) -> Vec<String> {
+    let bytes = std::fs::read(FST_PATH).expect("failed to read assets/words.fst");
+    let set = Set::new(bytes).expect("invalid FST file");
+    let mut stream = set.into_stream();
+    let mut keys = Vec::with_capacity(limit);
+
+    while let Some(key) = stream.next() {
+        if keys.len() >= limit {
+            break;
+        }
+        if let Ok(s) = std::str::from_utf8(key) {
+            keys.push(s.to_owned());
+        }
     }
-    keys.sort();
-    keys.dedup();
+
+    assert!(
+        !keys.is_empty(),
+        "assets/words.fst contains no valid UTF-8 keys"
+    );
     keys
 }
 
+fn make_english_miss(word: &str, is_known: impl Fn(&str) -> bool) -> String {
+    let char_count = word.chars().count();
+    let prefix: String = if char_count <= 2 {
+        word.to_owned()
+    } else {
+        word.chars().take(char_count - 2).collect()
+    };
+
+    for suffix in ["qx", "zx", "jz", "vq"] {
+        let candidate = format!("{prefix}{suffix}");
+        if !is_known(&candidate) {
+            return candidate;
+        }
+    }
+
+    let mut fallback = format!("{prefix}qx");
+    while is_known(&fallback) {
+        fallback.push('z');
+    }
+    fallback
+}
+
 fn generate_query_batch(keys: &[String], count: usize, edit_type: EditType) -> Vec<String> {
+    let known: HashSet<&str> = keys.iter().map(String::as_str).collect();
     let mut queries = Vec::with_capacity(count);
-    for (i, key) in keys.iter().take(count).enumerate() {
+
+    for key in keys.iter().cycle().take(count) {
         let mut q = key.clone();
         match edit_type {
             EditType::Exact => {}
             EditType::SingleDeletion => {
-                if q.len() > 1 {
+                if q.chars().count() > 1 {
                     q.pop();
                 }
             }
             EditType::SingleSubstitution => {
-                if !q.is_empty() {
-                    let last_idx = q.len() - 1;
+                if let Some((last_idx, _)) = q.char_indices().next_back() {
                     q.replace_range(last_idx.., "z");
                 }
             }
             EditType::Transposition => {
-                if q.len() >= 2 {
+                if q.len() >= 2 && q.is_ascii() {
                     let mut bytes = q.into_bytes();
                     bytes.swap(0, 1);
-                    q = String::from_utf8(bytes).unwrap();
+                    q = String::from_utf8(bytes)
+                        .unwrap_or_else(|e| String::from_utf8_lossy(e.as_bytes()).into_owned());
                 }
             }
             EditType::Miss => {
-                q = format!("nonexistent_prefix_{:x}", i);
+                q = make_english_miss(key, |candidate| known.contains(candidate));
             }
         }
         queries.push(q);
@@ -60,55 +100,41 @@ enum EditType {
 }
 
 fn bench_construction(c: &mut Criterion) {
-    let mut group = c.benchmark_group("Dictionary Construction");
+    let mut group = c.benchmark_group("Dictionary Load & Construction");
 
-    for &size in &[1_000, 10_000, 50_000] {
-        let keys = generate_dictionary_keys(size);
-        group.throughput(Throughput::Elements(keys.len() as u64));
+    group.bench_function("load_from_fst", |b| {
+        b.iter(|| black_box(Dictionary::open(black_box(FST_PATH)).unwrap()));
+    });
 
-        group.bench_with_input(BenchmarkId::new("from_iterator", size), &keys, |b, keys| {
+    let keys = load_sample_keys(50_000);
+    group.throughput(Throughput::Elements(keys.len() as u64));
+    group.bench_with_input(
+        BenchmarkId::new("from_iterator", keys.len()),
+        &keys,
+        |b, keys| {
             b.iter_batched(
                 || keys.clone(),
                 |k| black_box(Dictionary::from_iterator(black_box(k)).unwrap()),
                 BatchSize::SmallInput,
             );
-        });
-    }
-
-    let keys = generate_dictionary_keys(10_000);
-    group.throughput(Throughput::Elements(keys.len() as u64));
-    group.bench_function("build_from_file", |b| {
-        b.iter_batched(
-            || {
-                let input_file = NamedTempFile::new().unwrap();
-                let output_file = NamedTempFile::new().unwrap();
-                {
-                    let mut writer = std::io::BufWriter::new(&input_file);
-                    for key in &keys {
-                        writeln!(writer, "{}", key).unwrap();
-                    }
-                }
-                (input_file, output_file)
-            },
-            |(input, output)| {
-                black_box(
-                    Dictionary::build(black_box(input.path()), black_box(output.path())).unwrap(),
-                )
-            },
-            BatchSize::PerIteration,
-        );
-    });
+        },
+    );
 
     group.finish();
 }
 
 fn bench_exact_contains(c: &mut Criterion) {
     let mut group = c.benchmark_group("Exact Lookup (contains)");
-    let keys = generate_dictionary_keys(50_000);
-    let dict = Dictionary::from_iterator(keys.clone()).unwrap();
+    let dict = load_dictionary();
+    let keys = load_sample_keys(50_000);
 
-    let hit_key = keys[keys.len() / 2].clone();
-    let miss_key = "nonexistent_key_xyz_99999".to_string();
+    let hit_key = ["algorithm", "example", "benchmark", "dictionary", "hit"]
+        .into_iter()
+        .find(|&w| dict.contains(w))
+        .map(str::to_owned)
+        .unwrap_or_else(|| keys[keys.len() / 2].clone());
+
+    let miss_key = make_english_miss(&hit_key, |candidate| dict.contains(candidate));
 
     group.throughput(Throughput::Elements(1));
 
@@ -125,10 +151,14 @@ fn bench_exact_contains(c: &mut Criterion) {
 
 fn bench_single_search(c: &mut Criterion) {
     let mut group = c.benchmark_group("Single Search");
-    let keys = generate_dictionary_keys(50_000);
-    let dict = Dictionary::from_iterator(keys.clone()).unwrap();
+    let dict = load_dictionary();
+    let keys = load_sample_keys(50_000);
 
-    let target_query = &keys[keys.len() / 2];
+    let target_query = keys
+        .iter()
+        .skip(keys.len() / 2)
+        .find(|k| k.chars().count() >= 6)
+        .unwrap_or(&keys[keys.len() / 2]);
 
     for distance in [1, 2] {
         group.bench_with_input(
@@ -165,8 +195,14 @@ fn bench_single_search(c: &mut Criterion) {
         );
     }
 
+    let half_chars = target_query.chars().count() / 2;
+    let prefix_end = target_query
+        .char_indices()
+        .nth(half_chars)
+        .map_or(target_query.len(), |(idx, _)| idx);
+    let prefix_query = &target_query[..prefix_end];
+
     for prefix in [false, true] {
-        let prefix_query = &target_query[..target_query.len() / 2];
         group.bench_with_input(
             BenchmarkId::new("prefix_matching", prefix),
             &prefix,
@@ -203,12 +239,13 @@ fn bench_single_search(c: &mut Criterion) {
 
 fn bench_range_search(c: &mut Criterion) {
     let mut group = c.benchmark_group("Range Bounded Search");
-    let keys = generate_dictionary_keys(50_000);
-    let dict = Dictionary::from_iterator(keys.clone()).unwrap();
+    let dict = load_dictionary();
+    let keys = load_sample_keys(50_000);
 
-    let lower_bound = &keys[10_000];
-    let upper_bound = &keys[15_000];
-    let query = &keys[12_000];
+    let len = keys.len();
+    let lower_bound = &keys[len / 5];
+    let query = &keys[len / 4];
+    let upper_bound = &keys[(len * 3) / 10];
 
     group.bench_function("ge_and_le_bounds", |b| {
         b.iter(|| {
@@ -228,8 +265,8 @@ fn bench_range_search(c: &mut Criterion) {
 
 fn bench_batch_search(c: &mut Criterion) {
     let mut group = c.benchmark_group("Rayon Parallel Batch Search");
-    let keys = generate_dictionary_keys(50_000);
-    let dict = Dictionary::from_iterator(keys.clone()).unwrap();
+    let dict = load_dictionary();
+    let keys = load_sample_keys(50_000);
 
     let edit_types = [
         ("exact", EditType::Exact),
