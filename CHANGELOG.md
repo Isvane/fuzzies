@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.3](https://github.com/Isvane/fuzzies/compare/fuzzies-v0.6.2...fuzzies-v0.6.3) - 2026-11-18
+
+### Added
+
+- *(sort)* dedup lines and flush the writer ([#81](https://github.com/Isvane/fuzzies/pull/81))
+- *(search)* mark SearchBuilder as #[must_use]
+
+### Documentation
+
+- update README.md and BENCHMARK.md
+- *(bench)* update bench to use real fst file with Eng dict ([#80](https://github.com/Isvane/fuzzies/pull/80))
+
+### Fixed
+
+- *(sort)* trim whitespace ([#82](https://github.com/Isvane/fuzzies/pull/82))
+
 ## [0.6.2](https://github.com/Isvane/fuzzies/compare/fuzzies-v0.6.1...fuzzies-v0.6.2) - 2026-08-30
 
 ### Documentation
