@@ -106,6 +106,7 @@ impl Dictionary {
 
         let mut lines: Vec<&str> = content.lines().collect();
         lines.sort_unstable();
+        lines.dedup();
 
         let mut writer = BufWriter::new(File::create(path)?);
         for line in lines {
@@ -113,6 +114,8 @@ impl Dictionary {
                 writeln!(writer, "{}", line)?;
             }
         }
+        writer.flush()?;
+
         Ok(())
     }
 
