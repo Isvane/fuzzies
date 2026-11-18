@@ -104,7 +104,11 @@ impl Dictionary {
         let path = path.as_ref();
         let content = std::fs::read_to_string(path)?;
 
-        let mut lines: Vec<&str> = content.lines().collect();
+        let mut lines: Vec<&str> = content
+            .lines()
+            .map(str::trim)
+            .filter(|line| !line.is_empty())
+            .collect();
         lines.sort_unstable();
         lines.dedup();
 

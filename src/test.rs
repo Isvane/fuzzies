@@ -179,4 +179,30 @@ mod tests {
 
         assert_eq!(keys, vec!["the", "eh"]);
     }
+
+    #[test]
+    fn test_sort_whitespace_duplicates_and_build() {
+        let mut source_file = tempfile::NamedTempFile::new().unwrap();
+        writeln!(
+            source_file,
+            "  cherry  \napple\n  apple\nbanana\t\n   \n\t\napple   \n\tbanana"
+        )
+        .unwrap();
+
+        Dictionary::sort(source_file.path()).unwrap();
+
+        let reader = BufReader::new(File::open(source_file.path()).unwrap());
+        let sorted_lines: Vec<String> = reader.lines().collect::<Result<Vec<_>, _>>().unwrap();
+        assert_eq!(sorted_lines, vec!["apple", "banana", "cherry"]);
+
+        let target_dir = tempfile::tempdir().unwrap();
+        let target_fst_path = target_dir.path().join("whitespace_dedup.fst");
+        Dictionary::build(source_file.path(), &target_fst_path).unwrap();
+
+        let dict = Dictionary::open(&target_fst_path).unwrap();
+        assert_eq!(dict.len(), 3);
+        assert!(dict.contains("apple"));
+        assert!(dict.contains("banana"));
+        assert!(dict.contains("cherry"));
+    }
 }
